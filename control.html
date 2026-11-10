@@ -49,7 +49,11 @@
     .punto.viejo { background: #ff2020; box-shadow: 0 0 6px #ff2020; }
 
     main { max-width: 520px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); }
-    section { padding: 0 16px 16px; }
+    section { padding: 0 16px 18px; background: #fff; }
+    /* Secciones intercaladas: blanco / gris, para separarlas bien */
+    main > section:nth-of-type(even) { background: #e9e6e3; --fila: #ffffff; }
+    main > section:nth-of-type(even) .lista button:nth-child(even),
+    main > section:nth-of-type(even) .tarifa-fila:nth-child(even) { background: #f6f4f2; }
     h2 {
       margin: 0 -16px 12px;
       padding: 8px 16px;
@@ -198,7 +202,6 @@
       </label>
       <button class="principal enviar" id="guardarTarifas">GUARDAR TARIFAS EN LA TELE</button>
       <button class="secundario" id="volverGithub">VOLVER A LAS DE GITHUB</button>
-      <p class="nota">Cambia solo esta tele, al instante. Para que quede fijo para siempre, hay que cargarlo en datos.js.</p>
     </section>
 
     <section class="requiere">
@@ -221,7 +224,6 @@
         <button data-seg="0">HASTA QUITARLO</button>
       </div>
       <button class="principal enviar" id="avisoBtn">MOSTRAR EN LA TELE</button>
-      <p class="nota">Tapa todo el recuadro de horarios. Las tarifas y el reloj siguen visibles.</p>
     </section>
 
   </main>
