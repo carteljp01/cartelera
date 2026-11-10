@@ -1,0 +1,229 @@
+@charset "utf-8";
+
+/* ---------- Fuentes (las mismas del cartel original) ---------- */
+@font-face {
+  font-family: "bigdots";
+  src: url(../fonts/bigdots/BigDots.ttf);
+}
+@font-face {
+  font-family: "triad";
+  src: url(../fonts/triad/Triad_xs.ttf);
+}
+
+:root {
+  --marron: #402a1d;
+  --naranja: #884a00;
+  --gris-fila: #eeeeee;
+  --fuente-titulo: "bigdots", monospace;
+  --fuente-led: "triad", monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+  cursor: none; /* que no quede la flechita del mouse en la tele */
+}
+body.pausado { cursor: auto; }
+
+/* Todo se mide en vh para que entre igual en cualquier tele */
+body {
+  display: grid;
+  grid-template-rows: 13vh 1fr 23vh;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ---------- Cabezal ---------- */
+#cabezal {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logo { height: 70%; }
+
+#reloj {
+  position: absolute;
+  top: 1.6vh;
+  right: 2.5vh;
+  padding: 0.4vh 1vh;
+  font-family: var(--fuente-led);
+  font-size: 4.4vh;
+  line-height: 1.05;
+  color: #303030;
+  white-space: pre-line;
+  text-align: right;
+  box-shadow: 0 0 0 0.3vh #fff, 0.3vh 0.3vh 0 0.3vh #000;
+}
+
+/* ---------- Pantallas (salidas / retornos) ---------- */
+#pantallas {
+  position: relative;
+  perspective: 120vh;
+}
+
+.panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  visibility: hidden;
+}
+.panel.activo { visibility: visible; }
+
+.separador {
+  height: 1vh;
+  background: linear-gradient(yellow, red);
+}
+
+.titulo {
+  display: flex;
+  align-items: center;
+  gap: 1.4vh;
+  height: 9vh;
+  padding-left: 2.5vh;
+  font-family: var(--fuente-titulo);
+  font-size: 6vh;
+  font-weight: normal;
+  color: var(--marron);
+  transform-origin: 50% 50%;
+}
+
+.filas {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.fila {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 29% 1fr;
+  align-items: center;
+  font-family: var(--fuente-led);
+  font-size: 4.3vh;
+  color: var(--marron);
+  transform-origin: 50% 50%;
+}
+.fila:nth-child(odd) { background: var(--gris-fila); }
+
+.destino { padding-left: 2.5vh; white-space: nowrap; }
+.horas   { white-space: nowrap; }
+.hora    { display: inline-block; margin-right: 3.6vh; }
+
+/* LED redondo de 5x5 (verde = salidas, rojo = retornos) */
+.led8 {
+  display: inline-grid;
+  grid-template-columns: repeat(5, 0.5vh);
+  grid-template-rows: repeat(5, 0.5vh);
+  gap: 0.12vh;
+}
+.led8 span { width: 0.5vh; height: 0.5vh; }
+.led8.verde span.on { background: #00ff33; box-shadow: 0 0 0.25vh #00ff33, 0 0 0.7vh #00ff33; }
+.led8.rojo  span.on { background: #ff2020; box-shadow: 0 0 0.25vh #ff2020, 0 0 0.7vh #ff2020; }
+
+/* ---------- Transición tipo cartel de terminal ----------
+   1) las filas del panel que se va giran y desaparecen, de arriba hacia abajo
+   2) recién ahí entran las del nuevo panel, también en cascada
+   Nunca se ven los dos paneles a la vez. */
+.panel.sale .titulo,
+.panel.sale .fila {
+  animation: girarSalida 0.32s ease-in forwards;
+  animation-delay: calc(var(--i) * 45ms);
+}
+.panel.entra .titulo,
+.panel.entra .fila {
+  animation: girarEntrada 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: calc(var(--i) * 55ms);
+}
+@keyframes girarSalida {
+  to { transform: rotateX(90deg); opacity: 0; }
+}
+@keyframes girarEntrada {
+  from { transform: rotateX(-90deg); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+/* ---------- Pie de tarifas ---------- */
+#pie {
+  background: var(--marron);
+  color: #fff;
+  font-family: var(--fuente-titulo);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 2vh 1vh;
+}
+.tarifa-titulo {
+  text-align: center;
+  font-size: 4.6vh;
+  margin-bottom: 1vh;
+}
+#tarifas {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  column-gap: 2.2vh;
+  row-gap: 1.2vh;
+  font-size: 3vh;
+}
+.tarifa {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1vh;
+}
+.tarifa .nombre { white-space: nowrap; min-width: 0; overflow: hidden; }
+.tarifa .precio {
+  background: var(--naranja);
+  padding: 0.3vh 0.8vh;
+  flex: none;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---------- Edición (clic sobre un dato) ---------- */
+[data-editar] { cursor: text; }
+body:not(.pausado) [data-editar] { cursor: none; }
+[contenteditable="true"] {
+  outline: none;
+  background: #e6f7ff;
+  color: var(--marron);
+  border-radius: 0.4vh;
+}
+
+/* ---------- Aviso (pausa / actualización) ---------- */
+#aviso {
+  position: fixed;
+  top: 1.5vh;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 70vw;
+  padding: 1vh 2vh;
+  background: #c00;
+  color: #fff;
+  font: 600 2.2vh/1.35 system-ui, sans-serif;
+  text-align: center;
+  border-radius: 0.6vh;
+  display: none;
+  z-index: 10;
+}
+#aviso.visible { display: block; }
+#aviso.info { background: #1f5f2a; }
+#aviso small { display: block; font-weight: 400; font-size: 1.8vh; opacity: 0.9; }
+
+/* Aviso de música bloqueada por el navegador */
+#avisoMusica {
+  position: fixed;
+  left: 50%;
+  bottom: 24vh;
+  transform: translateX(-50%);
+  padding: 0.8vh 1.8vh;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font: 500 2vh/1.3 system-ui, sans-serif;
+  border-radius: 0.6vh;
+  z-index: 10;
+}

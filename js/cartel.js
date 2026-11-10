@@ -1,0 +1,289 @@
+/* =========================================================
+   Cartel de horarios COT Chuy
+   - Dibuja salidas, retornos y tarifas a partir de datos.js
+   - Alterna las dos pantallas con transición en cascada
+   - Funciona sin internet (sw.js guarda una copia en la PC)
+   - Se actualiza solo cuando hay cambios publicados
+   Teclas:  P = pausar / editar   ·   A = buscar actualización ya
+            M = música sí/no      ·   + / - = volumen (ver radio.js)
+   ========================================================= */
+(function () {
+  "use strict";
+
+  const ORIGINAL = window.CARTEL;
+  if (!ORIGINAL) {
+    document.body.textContent = "No se pudo cargar datos.js";
+    return;
+  }
+
+  const CLAVE_EDICIONES = "cartelEdiciones";
+  const FIRMA = JSON.stringify(ORIGINAL);
+  const EN_LINEA_POSIBLE = location.protocol.startsWith("http");
+  const MINUTOS_ENTRE_CHEQUEOS = 5;
+
+  let datos = cargarEdiciones() || clonar(ORIGINAL);
+  let pausado = false;
+  let indice = 0;
+  let enTransicion = false;
+  let ultimoChequeo = null;
+
+  /* ---------------- Dibujo ---------------- */
+
+  const LED = [
+    0, 1, 1, 1, 0,
+    1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1,
+    0, 1, 1, 1, 0,
+  ];
+  const led = (color) =>
+    `<span class="led8 ${color}">${LED.map((on) => `<span${on ? ' class="on"' : ""}></span>`).join("")}</span>`;
+
+  const esc = (t) =>
+    String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function panelHTML(tipo) {
+    const lista = datos[tipo] || [];
+    const titulo =
+      tipo === "salidas"
+        ? `${led("verde")}<span>SALIDAS DESDE <span data-editar="origen">${esc(datos.origen)}</span> A:</span>`
+        : `${led("rojo")}<span>RETORNOS A <span data-editar="origen">${esc(datos.origen)}</span> DESDE:</span>`;
+
+    const filas = lista
+      .map(
+        (f, i) => `
+        <div class="fila" style="--i:${i + 1}">
+          <span class="destino" data-editar="${tipo}.${i}.destino">${esc(f.destino)}</span>
+          <span class="horas">${f.horas
+            .map((h, j) => `<span class="hora" data-editar="${tipo}.${i}.horas.${j}">${esc(h)}</span>`)
+            .join("")}</span>
+        </div>`
+      )
+      .join("");
+
+    return `
+      <section class="panel" data-tipo="${tipo}">
+        <div class="separador"></div>
+        <h2 class="titulo" style="--i:0">${titulo}</h2>
+        <div class="filas">${filas}</div>
+      </section>`;
+  }
+
+  function dibujar() {
+    const cont = document.getElementById("pantallas");
+    cont.innerHTML = panelHTML("salidas") + panelHTML("retornos");
+    cont.children[indice].classList.add("activo");
+
+    document.getElementById("tarifas").innerHTML = datos.tarifas
+      .map(
+        (t, i) => `
+        <div class="tarifa">
+          <span class="nombre" data-editar="tarifas.${i}.destino">${esc(t.destino)}</span>
+          <span class="precio">$ <span data-editar="tarifas.${i}.precio">${esc(t.precio)}</span></span>
+        </div>`
+      )
+      .join("");
+  }
+
+  /* ---------------- Rotación ---------------- */
+
+  const DURACION_SALIDA = 900; // ms hasta que se fue la última fila
+  const DURACION_ENTRADA = 1200;
+
+  function cambiarPantalla() {
+    if (pausado || enTransicion || editando()) return;
+    const paneles = document.querySelectorAll(".panel");
+    if (paneles.length < 2) return;
+
+    const actual = paneles[indice];
+    indice = (indice + 1) % paneles.length;
+    const siguiente = paneles[indice];
+
+    enTransicion = true;
+    actual.classList.add("sale");
+    setTimeout(() => {
+      actual.classList.remove("activo", "sale");
+      siguiente.classList.add("activo", "entra");
+      setTimeout(() => {
+        siguiente.classList.remove("entra");
+        enTransicion = false;
+      }, DURACION_ENTRADA);
+    }, DURACION_SALIDA);
+  }
+
+  /* ---------------- Reloj ---------------- */
+
+  const DIAS = ["Dom.", "Lun.", "Mar.", "Mié.", "Jue.", "Vie.", "Sáb."];
+  const dos = (n) => String(n).padStart(2, "0");
+  function reloj() {
+    const a = new Date();
+    document.getElementById("reloj").textContent =
+      `${DIAS[a.getDay()]} ${dos(a.getDate())}/${dos(a.getMonth() + 1)}\n${dos(a.getHours())}:${dos(a.getMinutes())}`;
+  }
+
+  /* ---------------- Edición rápida (clic sobre un dato) ----------------
+     Sirve para un cambio de emergencia en esta pantalla.
+     Queda guardado en esta PC hasta que se publique un datos.js nuevo;
+     ahí se descarta y manda lo publicado. */
+
+  function editando() {
+    return !!document.querySelector('[contenteditable="true"]');
+  }
+
+  function clonar(o) {
+    return JSON.parse(JSON.stringify(o));
+  }
+
+  function cargarEdiciones() {
+    try {
+      const g = JSON.parse(localStorage.getItem(CLAVE_EDICIONES));
+      if (g && g.firma === FIRMA && g.datos) return g.datos;
+      localStorage.removeItem(CLAVE_EDICIONES);
+      localStorage.removeItem("cartelHorarios"); // ediciones del cartel viejo
+    } catch (e) {}
+    return null;
+  }
+
+  function guardarEdiciones() {
+    try {
+      localStorage.setItem(CLAVE_EDICIONES, JSON.stringify({ firma: FIRMA, datos }));
+    } catch (e) {}
+  }
+
+  function asignar(ruta, valor) {
+    const partes = ruta.split(".");
+    let obj = datos;
+    for (let i = 0; i < partes.length - 1; i++) obj = obj[partes[i]];
+    const ultima = partes[partes.length - 1];
+    if (Array.isArray(obj) && valor === "") obj.splice(Number(ultima), 1); // hora borrada
+    else if (ultima === "precio") obj[ultima] = valor.replace(/[^\d]/g, "") || obj[ultima];
+    else obj[ultima] = valor;
+  }
+
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-editar]");
+    if (!el) return;
+    el.setAttribute("contenteditable", "true");
+    el.focus();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    const el = e.target.closest && e.target.closest('[contenteditable="true"]');
+    if (el) {
+      if (e.key === "Enter") { e.preventDefault(); el.blur(); }
+      if (e.key === "Escape") { el.textContent = el.dataset.antes || el.textContent; el.blur(); }
+      return; // mientras se escribe, P y A son letras normales
+    }
+    const k = e.key.toLowerCase();
+    if (k === "p") alternarPausa();
+    if (k === "a") buscarActualizacion(true);
+  });
+
+  document.addEventListener("focusin", (e) => {
+    if (e.target.dataset && e.target.dataset.editar) e.target.dataset.antes = e.target.textContent;
+  });
+
+  document.addEventListener("focusout", (e) => {
+    const el = e.target;
+    if (!el.dataset || !el.dataset.editar) return;
+    el.removeAttribute("contenteditable");
+    const nuevo = el.textContent.trim();
+    if (nuevo === el.dataset.antes) return;
+    asignar(el.dataset.editar, nuevo);
+    guardarEdiciones();
+    dibujar();
+  });
+
+  /* ---------------- Pausa y avisos ---------------- */
+
+  let temporizadorAviso = null;
+  function aviso(html, tipo, ms) {
+    const a = document.getElementById("aviso");
+    clearTimeout(temporizadorAviso);
+    if (!html) { a.className = ""; return; }
+    a.innerHTML = html;
+    a.className = "visible " + (tipo || "");
+    if (ms) temporizadorAviso = setTimeout(() => aviso(""), ms);
+  }
+
+  function estadoConexion() {
+    const red = navigator.onLine ? "con internet" : "sin internet (mostrando la copia guardada)";
+    const chequeo = ultimoChequeo
+      ? ` · último chequeo ${dos(ultimoChequeo.getHours())}:${dos(ultimoChequeo.getMinutes())}`
+      : "";
+    return EN_LINEA_POSIBLE ? red + chequeo : "abierto desde la carpeta (sin actualización automática)";
+  }
+
+  function alternarPausa() {
+    pausado = !pausado;
+    document.body.classList.toggle("pausado", pausado);
+    if (pausado) {
+      aviso(
+        `⏸ PAUSADO — MODO EDICIÓN<small>Clic en un dato para cambiarlo · P para seguir · A para buscar actualización · M música · +/- volumen<br>${estadoConexion()}${window.radio ? "<br>" + window.radio.estado() : ""}</small>`
+      );
+    } else {
+      aviso("");
+    }
+  }
+
+  /* ---------------- Actualizador ----------------
+     Cada 5 minutos (y apenas vuelve internet) compara los archivos
+     publicados con los que se están mostrando. Si cambió algo,
+     recarga la página sola. Si no hay internet, no hace nada. */
+
+  const ARCHIVOS = ["datos.js", "js/cartel.js", "js/radio.js", "css/cartel.css", "index.html"];
+  let huella = null;
+
+  async function leerPublicado() {
+    const textos = await Promise.all(
+      ARCHIVOS.map((f) =>
+        fetch(`${f}?chequeo=${Date.now()}`, { cache: "no-store" }).then((r) => {
+          if (!r.ok) throw new Error(f);
+          return r.text();
+        })
+      )
+    );
+    return textos.join("\n@@\n");
+  }
+
+  async function buscarActualizacion(manual) {
+    if (!EN_LINEA_POSIBLE) {
+      if (manual) aviso("Abierto desde la carpeta: no se puede actualizar solo", "", 4000);
+      return;
+    }
+    if (manual) aviso("Buscando actualización…", "info");
+    try {
+      const actual = await leerPublicado();
+      ultimoChequeo = new Date();
+      if (huella === null) huella = actual;
+      if (actual !== huella) {
+        if (pausado && !manual) return; // no recargar en medio de una edición
+        aviso("Hay una versión nueva. Actualizando…", "info");
+        setTimeout(() => location.reload(), 1500);
+        return;
+      }
+      if (manual) aviso(`Ya está al día ✓<small>${estadoConexion()}</small>`, "info", 4000);
+    } catch (e) {
+      if (manual) aviso(`No se pudo revisar<small>${estadoConexion()}</small>`, "", 4000);
+    }
+  }
+
+  /* ---------------- Arranque ---------------- */
+
+  dibujar();
+  reloj();
+  setInterval(reloj, 1000);
+  setInterval(cambiarPantalla, (Number(datos.segundosPorPantalla) || 40) * 1000);
+
+  if (EN_LINEA_POSIBLE && "serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+  if (EN_LINEA_POSIBLE) {
+    buscarActualizacion(false); // toma la "huella" de lo que se está mostrando
+    setInterval(() => buscarActualizacion(false), MINUTOS_ENTRE_CHEQUEOS * 60 * 1000);
+    window.addEventListener("online", () => setTimeout(() => buscarActualizacion(false), 5000));
+  }
+
+  // Para probar rápido desde la consola: cartel.cambiar()
+  window.cartel = { cambiar: cambiarPantalla, actualizar: () => buscarActualizacion(true), aviso };
+})();
