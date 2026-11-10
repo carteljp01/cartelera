@@ -106,6 +106,24 @@
     .alerta-activa { background: #b00000; color: #fff; padding: 12px; font: 400 18px/1.2 "triad", monospace; text-transform: uppercase; }
     .alerta-activa.naranja { background: #c2410c; }
     .alerta-activa small { display: block; font-size: 14px; opacity: 0.85; margin-top: 4px; text-transform: none; }
+    .origen-tarifas { font: 400 15px/1.2 "triad", monospace; margin-bottom: 10px; color: var(--gris); }
+    .origen-tarifas.editado { color: #b00000; }
+    .tarifas { display: grid; border: 2px solid var(--marron); }
+    .tarifa-fila { display: grid; grid-template-columns: minmax(0, 1fr) 118px; }
+    .tarifa-fila:nth-child(odd) { background: var(--fila); }
+    .tarifa-fila input {
+      font: 400 20px/1 "triad", monospace; border: 0; border-radius: 0; background: transparent;
+      padding: 12px 10px; min-width: 0; color: var(--texto); outline: none;
+    }
+    .tarifa-fila input:focus { background: #fff6d6; }
+    .tarifa-fila .precio-wrap { display: flex; align-items: center; background: var(--naranja); color: #fff; padding-left: 10px; font: 400 20px/1 "triad", monospace; }
+    .tarifa-fila .precio-wrap input { color: #fff; text-align: right; padding-left: 4px; }
+    .tarifa-fila .precio-wrap input:focus { background: #a35a00; }
+    .tarifa-fila.cambiada .precio-wrap { background: #b00000; }
+    .tarifa-fila.cambiada .precio-wrap input, .tarifa-fila.cambiada .precio-wrap input:focus { background: transparent; text-decoration: underline; }
+    .nota-label { display: block; margin-top: 10px; font-size: 14px; color: var(--gris); }
+    .nota-label input { display: block; width: 100%; margin-top: 4px; font: 400 18px/1.2 "triad", monospace; padding: 10px; border-radius: 0; border: 2px solid var(--marron); outline: none; }
+    .secundario { width: 100%; justify-content: center; background: var(--fila); font: 400 16px/1 "triad", monospace; margin-top: 2px; }
     .quitar { width: 100%; justify-content: center; background: var(--marron); color: #fff; font: 400 18px/1 "bigdots", monospace; margin: 2px 0 14px; }
     .principal { background: var(--naranja); color: #fff; font: 400 18px/1 "bigdots", monospace; justify-content: center; padding: 12px 18px; }
     .nota { color: var(--gris); font-size: 13px; margin-top: 8px; }
@@ -169,6 +187,18 @@
         <button data-cmd="actualizar">BUSCAR CAMBIOS</button>
         <button data-cmd="recargar">RECARGAR</button>
       </div>
+    </section>
+
+    <section class="requiere">
+      <h2>TARIFAS</h2>
+      <div class="origen-tarifas" id="origenTarifas">Esperando la tele…</div>
+      <div class="tarifas" id="tarifasLista"></div>
+      <label class="nota-label">Aclaración junto a TARIFAS
+        <input id="notaTarifas" maxlength="60" placeholder="Incluye tasa de uso $10">
+      </label>
+      <button class="principal enviar" id="guardarTarifas">GUARDAR TARIFAS EN LA TELE</button>
+      <button class="secundario" id="volverGithub">VOLVER A LAS DE GITHUB</button>
+      <p class="nota">Cambia solo esta tele, al instante. Para que quede fijo para siempre, hay que cargarlo en datos.js.</p>
     </section>
 
     <section class="requiere">
@@ -291,6 +321,7 @@
       $("mudo").classList.toggle("mudo", !!r.mudo);
       $("pausa").textContent = ultimo.pausado ? "SEGUIR" : "PAUSAR";
       dibujarAlerta();
+      dibujarTarifas();
     }
 
     function dibujarAlerta() {
@@ -308,6 +339,36 @@
       }
     }
     setInterval(() => ultimo && dibujarAlerta(), 15000);
+
+    // Tarifas: se cargan de lo que muestra la tele; no se pisan mientras estás editando
+    let editandoTarifas = false;
+    let tarifasTele = [];
+    function dibujarTarifas() {
+      if (!ultimo || !Array.isArray(ultimo.tarifas)) return;
+      $("origenTarifas").textContent = ultimo.editado ? "● Cambiadas desde el control (no son las de GitHub)" : "Usando las de GitHub";
+      $("origenTarifas").classList.toggle("editado", !!ultimo.editado);
+      if (editandoTarifas) return;
+      tarifasTele = ultimo.tarifas;
+      $("tarifasLista").innerHTML = "";
+      tarifasTele.forEach((t, i) => {
+        const f = document.createElement("div");
+        f.className = "tarifa-fila";
+        f.innerHTML = '<input class="t-destino" maxlength="24"><span class="precio-wrap">$<input class="t-precio" inputmode="numeric" maxlength="5"></span>';
+        f.querySelector(".t-destino").value = t.destino;
+        f.querySelector(".t-precio").value = t.precio;
+        f.querySelectorAll("input").forEach((inp) =>
+          inp.addEventListener("input", () => {
+            editandoTarifas = true;
+            const p = f.querySelector(".t-precio");
+            p.value = p.value.replace(/[^\d]/g, "");
+            f.classList.toggle("cambiada", Number(p.value) !== Number(t.precio) || f.querySelector(".t-destino").value.trim() !== t.destino);
+          })
+        );
+        $("tarifasLista").appendChild(f);
+      });
+      $("notaTarifas").value = ultimo.notaTarifas || "";
+    }
+    $("notaTarifas").addEventListener("input", () => (editandoTarifas = true));
 
     function dibujarConexion() {
       const seg = (Date.now() - ultimoMomento) / 1000;
@@ -366,6 +427,23 @@
       $("avisoTxt").value = "";
     };
     $("quitarAlerta").onclick = () => enviar("quitar-alerta", null, "Quitando aviso");
+
+    $("guardarTarifas").onclick = () => {
+      const filas = [...document.querySelectorAll(".tarifa-fila")].map((f) => ({
+        destino: f.querySelector(".t-destino").value.trim(),
+        precio: Number(f.querySelector(".t-precio").value),
+      }));
+      if (!filas.length) return toast("Todavía no llegaron las tarifas de la tele");
+      const mal = filas.find((t) => !t.destino || !(t.precio > 0));
+      if (mal) return toast("Revisá: hay un destino o precio vacío");
+      editandoTarifas = false;
+      enviar("tarifas", { tarifas: filas, nota: $("notaTarifas").value }, "Tarifas enviadas a la tele");
+    };
+    $("volverGithub").onclick = () => {
+      if (!confirm("¿Descartar los cambios hechos desde el control y volver a las tarifas de GitHub?")) return;
+      editandoTarifas = false;
+      enviar("volver-github", null, "Volviendo a las de GitHub");
+    };
 
     dibujar();
   })();

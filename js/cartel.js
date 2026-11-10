@@ -153,6 +153,34 @@
     } catch (e) {}
   }
 
+  // Tarifas mandadas desde el control remoto
+  function ponerTarifas(lista, nota) {
+    if (!Array.isArray(lista)) return;
+    const limpias = lista
+      .map((t) => ({
+        destino: String((t && t.destino) || "").trim().slice(0, 24),
+        precio: Number(String((t && t.precio) || "").replace(/[^\d]/g, "")),
+      }))
+      .filter((t) => t.destino && t.precio > 0)
+      .slice(0, 15);
+    if (!limpias.length) return;
+    datos.tarifas = limpias;
+    if (typeof nota === "string") datos.notaTarifas = nota.trim().slice(0, 60);
+    guardarEdiciones();
+    dibujar();
+    aviso("Tarifas actualizadas ✓", "info", 3000);
+    informar();
+  }
+
+  // Descarta todos los cambios hechos en esta pantalla y vuelve a datos.js
+  function volverAGithub() {
+    try { localStorage.removeItem(CLAVE_EDICIONES); } catch (e) {}
+    datos = clonar(ORIGINAL);
+    dibujar();
+    aviso("Volvió a los datos de GitHub", "info", 3000);
+    informar();
+  }
+
   function asignar(ruta, valor) {
     const partes = ruta.split(".");
     let obj = datos;
@@ -362,11 +390,16 @@
     pausar: alternarPausa,
     alerta,
     quitarAlerta,
+    ponerTarifas,
+    volverAGithub,
     informar,
     datos: () => ({
       pausado,
       pantalla: indice === 0 ? "Salidas" : "Retornos",
       alerta: alertaActual,
+      tarifas: datos.tarifas,
+      notaTarifas: datos.notaTarifas || "",
+      editado: JSON.stringify(datos) !== FIRMA,
       enLinea: navigator.onLine,
       ultimoChequeo: ultimoChequeo ? `${dos(ultimoChequeo.getHours())}:${dos(ultimoChequeo.getMinutes())}` : "",
     }),

@@ -76,6 +76,12 @@
         return;
       }
       case "quitar-alerta": c.quitarAlerta && c.quitarAlerta(); return;
+      case "tarifas": {
+        const v = orden.valor || {};
+        c.ponerTarifas && c.ponerTarifas(v.tarifas, v.nota);
+        return;
+      }
+      case "volver-github": c.volverAGithub && c.volverAGithub(); return;
     }
   }
 
