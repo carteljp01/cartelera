@@ -75,7 +75,7 @@
     cont.children[indice].classList.add("activo");
 
     const nota = document.getElementById("notaTarifas");
-    if (nota) nota.textContent = datos.notaTarifas ? "· " + datos.notaTarifas : "";
+    if (nota) nota.textContent = datos.notaTarifas || "";
 
     document.getElementById("tarifas").innerHTML = datos.tarifas
       .map(
