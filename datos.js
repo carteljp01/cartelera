@@ -15,9 +15,18 @@ window.CARTEL = {
   origen: "CHUY",
   segundosPorPantalla: 40,
 
-  // Radio COT: pasa los MP3 que subas a la carpeta "musica"
-  // activa: false para apagarla · volumen de 0 a 1
-  musica: { activa: true, volumen: 0.4 },
+  // Música de fondo
+  // - Con internet suena la primera radio de la lista (R en el teclado cambia).
+  // - Sin internet, o si la radio se cae, pasa los MP3 de la carpeta "musica".
+  // - activa: false para apagar todo · volumen de 0 a 1 (arranca bajito)
+  musica: {
+    activa: true,
+    volumen: 0.25,
+    radios: [
+      { nombre: "Atlántica FM 89.3", url: "https://atlanticafm.radioca.st/stream" },
+      { nombre: "FM Coronilla 102.3", url: "https://streaming01.shockmedia.com.ar/9184/stream" },
+    ],
+  },
 
   // Aclaración que va al lado de TARIFAS (dejar "" para no mostrar nada)
   notaTarifas: "Incluye tasa de uso $10",

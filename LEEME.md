@@ -12,6 +12,9 @@
 - Clic en un dato (con P): cambio rápido solo en esa pantalla. Se descarta cuando se publica un `datos.js` nuevo.
 
 ## Radio COT (música)
+- Con internet suena la radio en vivo (Atlántica FM 89.3; **R** pasa a FM Coronilla 102.3 y después a "mis canciones").
+  Las radios se cambian en `datos.js` → `musica.radios` (el enlace tiene que empezar con https).
+- Sin internet, o si la radio se cae, pasa sola a los MP3 de la carpeta `musica` y reintenta la radio cada 2 minutos.
 - Subí los MP3 a la carpeta `musica` del repo (Add file → Upload files). No hace falta anotar nada más.
 - Pasan en aleatorio con fundido entre canciones. Se guardan en la PC: suenan aunque no haya internet.
 - Canciones nuevas aparecen solas en hasta 30 minutos (o recargando la página).

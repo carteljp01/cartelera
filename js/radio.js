@@ -1,26 +1,31 @@
 /* =========================================================
    Radio COT — música de fondo del cartel
-   - Pasa en aleatorio los MP3 de la carpeta "musica" del repo.
-   - No hace falta anotar los nombres: con internet lee la carpeta
-     de GitHub sola y recuerda la lista para los días sin conexión.
-   - Cada canción queda guardada en la PC: funciona sin internet.
+   - Radio en vivo (las de datos.js) cuando hay internet.
+   - Si se corta internet o la radio se cae, pasa sola a los MP3
+     de la carpeta "musica" y vuelve a la radio cuando se puede.
+   - Los MP3 se guardan en la PC: suenan aunque no haya internet.
+     No hace falta anotar los nombres: lee la carpeta de GitHub sola.
    Teclas:  M = silenciar / activar   ·   + / - = volumen
+            R = cambiar de radio (… → mis canciones → …)
    ========================================================= */
 (function () {
   "use strict";
 
   const CFG = Object.assign(
-    { activa: true, volumen: 0.4, segundosFundido: 3, repo: "" },
+    { activa: true, volumen: 0.25, segundosFundido: 3, repo: "", radios: [] },
     (window.CARTEL || {}).musica
   );
   if (!CFG.activa) return;
 
+  const RADIOS = (Array.isArray(CFG.radios) ? CFG.radios : []).filter((r) => r && r.url);
   const CACHE = "cartel-cot";
   const CLAVE_LISTA = "radioLista";
   const CLAVE_VOL = "radioVolumen";
   const CLAVE_MUDO = "radioMudo";
+  const CLAVE_EMISORA = "radioEmisora";
   const WEB = location.protocol.startsWith("http");
   const EXT = /\.(mp3|m4a|ogg|wav)$/i;
+  const REINTENTO_RADIO_MS = 2 * 60 * 1000;
 
   const leer = (k, def) => { try { const v = JSON.parse(localStorage.getItem(k)); return v === null ? def : v; } catch (e) { return def; } };
   const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
@@ -31,20 +36,24 @@
   let fallosSeguidos = 0;
   let volumen = leer(CLAVE_VOL, CFG.volumen);
   let mudo = leer(CLAVE_MUDO, false);
+  let elegida = Math.min(leer(CLAVE_EMISORA, 0), RADIOS.length); // RADIOS.length = "mis canciones"
+  let modo = null; // "vivo" | "local"
   let bloqueada = false; // el navegador no deja sonar hasta que alguien toque una tecla
   let sonando = "";
   let urlBlob = null;
   let fundidoSalida = false;
   let animacion = null;
+  let reintento = null;
 
   const audio = new Audio();
   audio.preload = "auto";
 
   const volumenDeseado = () => (mudo ? 0 : volumen);
+  const quiereVivo = () => elegida < RADIOS.length;
   const nombreBonito = (ruta) =>
     decodeURIComponent(ruta.split("/").pop()).replace(EXT, "").replace(/[_-]+/g, " ");
 
-  /* ---------- Lista de canciones ---------- */
+  /* ---------- Lista de canciones propias ---------- */
 
   function repoGithub() {
     if (CFG.repo) return CFG.repo;
@@ -64,14 +73,12 @@
           const j = await r.json();
           l = j.filter((f) => f.type === "file" && EXT.test(f.name)).map((f) => "musica/" + f.name);
         } else if (r.status === 404) {
-          l = []; // todavía no hay carpeta musica
+          l = [];
         }
       } catch (e) {}
     }
     if (l) guardar(CLAVE_LISTA, l);
     else l = leer(CLAVE_LISTA, []);
-
-    // Respaldo manual (sirve también abriendo desde la carpeta): musica/lista.js
     if (!l.length && Array.isArray(window.LISTA_MUSICA)) {
       l = window.LISTA_MUSICA.map((n) => (n.includes("/") ? n : "musica/" + n));
     }
@@ -84,12 +91,11 @@
       const j = Math.floor(Math.random() * (i + 1));
       [orden[i], orden[j]] = [orden[j], orden[i]];
     }
-    // que no se repita la misma canción al dar la vuelta
     if (orden.length > 1 && lista[orden[0]] === sonando) orden.push(orden.shift());
     pos = 0;
   }
 
-  /* ---------- Reproducción ---------- */
+  /* ---------- Volumen ---------- */
 
   function fundir(hasta, segundos, alTerminar) {
     clearInterval(animacion);
@@ -104,33 +110,6 @@
         if (alTerminar) alTerminar();
       }
     }, 50);
-  }
-
-  async function siguiente() {
-    if (!lista.length) return;
-    if (pos >= orden.length) mezclar();
-    const archivo = lista[orden[pos++]];
-    fundidoSalida = false;
-    try {
-      let src = encodeURI(archivo);
-      if (WEB) {
-        // se baja entero: así queda guardado para los días sin internet
-        const r = await fetch(src);
-        if (!r.ok) throw new Error("no está");
-        src = URL.createObjectURL(await r.blob());
-      }
-      if (urlBlob) URL.revokeObjectURL(urlBlob);
-      urlBlob = src.startsWith("blob:") ? src : null;
-      audio.src = src;
-      audio.volume = 0;
-      sonando = archivo;
-      await reproducir();
-      fallosSeguidos = 0;
-    } catch (e) {
-      fallosSeguidos++;
-      // si fallan todas (p. ej. sin internet y nada guardado), reintenta en un rato
-      setTimeout(siguiente, fallosSeguidos > lista.length ? 60000 : 1000);
-    }
   }
 
   async function reproducir() {
@@ -149,33 +128,132 @@
     }
   }
 
+  function soltarBlob() {
+    if (urlBlob) { URL.revokeObjectURL(urlBlob); urlBlob = null; }
+  }
+
+  /* ---------- Radio en vivo ---------- */
+
+  async function arrancarVivo() {
+    const r = RADIOS[elegida];
+    clearTimeout(reintento);
+    modo = "vivo";
+    sonando = r.nombre || r.url;
+    soltarBlob();
+    audio.src = r.url;
+    audio.volume = 0;
+    try {
+      await reproducir();
+    } catch (e) {
+      pasarALocal();
+    }
+  }
+
+  function pasarALocal() {
+    if (modo === "local") return;
+    modo = "local";
+    sonando = "";
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+    siguiente();
+    programarReintento();
+  }
+
+  function programarReintento() {
+    clearTimeout(reintento);
+    if (!quiereVivo()) return;
+    reintento = setTimeout(() => {
+      if (quiereVivo() && modo !== "vivo" && navigator.onLine) arrancarVivo();
+      else programarReintento();
+    }, REINTENTO_RADIO_MS);
+  }
+
+  // Si la radio se queda "colgada" (sin avanzar) más de 20 s, pasa a las canciones propias
+  let ultimoTiempo = 0;
+  let quieto = 0;
+  setInterval(() => {
+    if (modo !== "vivo" || bloqueada || audio.paused) { quieto = 0; return; }
+    if (audio.currentTime === ultimoTiempo) quieto += 5;
+    else quieto = 0;
+    ultimoTiempo = audio.currentTime;
+    if (quieto >= 20) { quieto = 0; pasarALocal(); }
+  }, 5000);
+
+  /* ---------- Canciones propias ---------- */
+
+  async function siguiente() {
+    if (modo !== "local" || !lista.length) return;
+    if (pos >= orden.length) mezclar();
+    const archivo = lista[orden[pos++]];
+    fundidoSalida = false;
+    try {
+      let src = encodeURI(archivo);
+      if (WEB) {
+        const r = await fetch(src);
+        if (!r.ok) throw new Error("no está");
+        src = URL.createObjectURL(await r.blob());
+      }
+      if (modo !== "local") { if (src.startsWith("blob:")) URL.revokeObjectURL(src); return; }
+      soltarBlob();
+      urlBlob = src.startsWith("blob:") ? src : null;
+      audio.src = src;
+      audio.volume = 0;
+      sonando = archivo;
+      await reproducir();
+      fallosSeguidos = 0;
+    } catch (e) {
+      fallosSeguidos++;
+      setTimeout(siguiente, fallosSeguidos > lista.length ? 60000 : 1000);
+    }
+  }
+
   audio.addEventListener("timeupdate", () => {
+    if (modo !== "local") return;
     const resta = audio.duration - audio.currentTime;
     if (!fundidoSalida && isFinite(resta) && resta < CFG.segundosFundido) {
       fundidoSalida = true;
       fundir(0, Math.max(0.2, resta));
     }
   });
-  audio.addEventListener("ended", siguiente);
-  audio.addEventListener("error", () => setTimeout(siguiente, 1000));
-
-  /* ---------- Guardar canciones para usar sin internet ---------- */
+  audio.addEventListener("ended", () => (modo === "vivo" ? pasarALocal() : siguiente()));
+  audio.addEventListener("error", () => {
+    if (!audio.getAttribute("src")) return;
+    if (modo === "vivo") pasarALocal();
+    else setTimeout(siguiente, 1000);
+  });
 
   async function guardarTodasSinInternet() {
     if (!WEB || !("caches" in window)) return;
     const c = await caches.open(CACHE);
     const urls = lista.map((a) => new URL(encodeURI(a), location.href).href);
-    // borrar las que ya no están en la carpeta
     for (const req of await c.keys()) {
       if (req.url.includes("/musica/") && EXT.test(req.url) && !urls.includes(req.url)) await c.delete(req);
     }
-    // bajar de a una las que faltan (sin apurar la conexión)
     for (const u of urls) {
       if (!navigator.onLine) return;
       if (await c.match(u)) continue;
       try { const r = await fetch(u); if (r.ok) await r.blob(); } catch (e) {}
     }
   }
+
+  /* ---------- Qué suena ---------- */
+
+  function decidir() {
+    clearTimeout(reintento);
+    if (quiereVivo() && navigator.onLine) {
+      arrancarVivo();
+    } else {
+      modo = null;
+      pasarALocal();
+    }
+  }
+
+  window.addEventListener("offline", () => { if (modo === "vivo") pasarALocal(); });
+  window.addEventListener("online", () => {
+    setTimeout(() => { if (quiereVivo() && modo !== "vivo") arrancarVivo(); }, 5000);
+    setTimeout(cargar, 8000);
+  });
 
   /* ---------- Aviso si el navegador bloquea el sonido ---------- */
 
@@ -190,11 +268,15 @@
   function ocultarAvisoBloqueo() {
     if (avisoBloqueo) { avisoBloqueo.remove(); avisoBloqueo = null; }
   }
-  const desbloquear = () => { if (bloqueada) reproducir().catch(() => {}); };
+  const desbloquear = () => { if (bloqueada) reproducir().catch(() => (modo === "vivo" ? pasarALocal() : null)); };
   document.addEventListener("keydown", desbloquear);
   document.addEventListener("pointerdown", desbloquear);
 
   /* ---------- Teclas ---------- */
+
+  function nombreElegida() {
+    return quiereVivo() ? RADIOS[elegida].nombre : "Mis canciones";
+  }
 
   document.addEventListener("keydown", (e) => {
     if (e.target.isContentEditable) return;
@@ -211,6 +293,12 @@
       if (!mudo) fundir(volumen, 0.2);
       avisar(`🔊 Volumen ${Math.round(volumen * 100)}%`);
     }
+    if (k === "r" && RADIOS.length) {
+      elegida = (elegida + 1) % (RADIOS.length + 1);
+      guardar(CLAVE_EMISORA, elegida);
+      avisar(`📻 ${nombreElegida()}`);
+      fundir(0, 0.3, decidir);
+    }
   });
 
   function avisar(texto) {
@@ -225,7 +313,7 @@
     lista = nueva;
     if (cambio) {
       mezclar();
-      if (!sonando || !lista.includes(sonando)) {
+      if (modo === "local" && (!sonando || !lista.includes(sonando))) {
         audio.pause();
         siguiente();
       }
@@ -233,15 +321,22 @@
     }
   }
 
+  decidir();
   cargar();
-  setInterval(cargar, 30 * 60 * 1000); // revisa si subiste canciones nuevas
-  window.addEventListener("online", () => setTimeout(cargar, 8000));
+  setInterval(cargar, 30 * 60 * 1000);
 
   window.radio = {
     estado() {
-      if (!lista.length) return "Música: no hay canciones en la carpeta musica";
+      const vol = mudo ? "silenciada" : "volumen " + Math.round(volumen * 100) + "%";
       if (bloqueada) return "Música: esperando que toquen una tecla";
-      return `Música: ${mudo ? "silenciada" : "volumen " + Math.round(volumen * 100) + "%"} · ${lista.length} canciones · sonando «${nombreBonito(sonando)}»`;
+      if (modo === "vivo") return `Música: 📻 ${sonando} en vivo · ${vol} · R cambia de radio`;
+      if (!lista.length) {
+        return quiereVivo()
+          ? `Música: sin conexión con ${nombreElegida()} y sin canciones propias · reintenta cada 2 min`
+          : "Música: no hay canciones en la carpeta musica";
+      }
+      const extra = quiereVivo() ? ` · sin conexión con ${nombreElegida()}, reintenta cada 2 min` : "";
+      return `Música: ${vol} · sonando «${nombreBonito(sonando)}»${extra}`;
     },
     siguiente,
   };
