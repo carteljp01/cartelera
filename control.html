@@ -39,7 +39,7 @@
     }
     header img { height: 26px; }
     header h1 { font-size: 17px; font-weight: 600; flex: 1; white-space: nowrap; }
-    .estado-tele { display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.9; }
+    .estado-tele { display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.9; white-space: nowrap; }
     .punto { width: 9px; height: 9px; border-radius: 50%; background: #999; }
     .punto.ok { background: #3ddc84; box-shadow: 0 0 6px #3ddc84; }
     .punto.viejo { background: #f5b301; }
@@ -73,7 +73,7 @@
     }
     button:active { transform: scale(0.98); }
     button.activa { border-color: var(--naranja); background: var(--naranja-suave); font-weight: 600; }
-    button.activa::after { content: "● sonando"; margin-left: auto; color: var(--naranja); font-size: 12px; font-weight: 600; }
+    button.activa::after { content: "● sonando"; margin-left: auto; color: var(--naranja); font-size: 12px; font-weight: 600; white-space: nowrap; }
     button.principal { background: var(--naranja); border-color: var(--naranja); color: #fff; font-weight: 600; justify-content: center; }
     .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .fila button { justify-content: center; text-align: center; }
@@ -154,7 +154,7 @@
         <input id="avisoTxt" maxlength="140" placeholder="Ej: El de las 16:30 sale con demora">
         <button class="principal" id="avisoBtn">Enviar</button>
       </div>
-      <p class="nota">Aparece arriba en la tele durante 15 segundos.</p>
+      <p class="nota">Aparece grande en el medio de la tele durante 15 segundos.</p>
     </section>
   </main>
 
