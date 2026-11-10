@@ -13,6 +13,8 @@ const PRECARGA = [
   "./js/radio.js",
   "./js/remoto.js",
   "./control.html",
+  "./control.webmanifest",
+  "./img/icono-192.png",
   "./musica/lista.js",
   "./css/cartel.css",
   "./img/Cot_logo_Solo.svg",

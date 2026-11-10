@@ -1,0 +1,17 @@
+{
+  "name": "Control Cartel COT",
+  "short_name": "Cartel COT",
+  "description": "Control remoto del cartel de horarios de COT Chuy",
+  "lang": "es",
+  "start_url": "control.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#402a1d",
+  "icons": [
+    { "src": "img/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "img/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "img/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

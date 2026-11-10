@@ -7,6 +7,10 @@
   <meta name="theme-color" content="#402a1d">
   <title>Control · Cartel COT</title>
   <link rel="icon" href="COT.ico">
+  <link rel="manifest" href="control.webmanifest">
+  <link rel="apple-touch-icon" href="img/icono-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Cartel COT">
   <script src="datos.js"></script>
   <style>
     @font-face { font-family: "bigdots"; src: url(fonts/bigdots/BigDots.ttf); }
@@ -365,6 +369,8 @@
 
     dibujar();
   })();
+  // Necesario para que el celular lo ofrezca como app instalable
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
   </script>
 </body>
 </html>
