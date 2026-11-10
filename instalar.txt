@@ -1,0 +1,21 @@
+# Instalador del acceso directo "Cartel COT" (Windows)
+# Uso en PowerShell:   irm https://carteljp01.github.io/cartelera/instalar.txt | iex
+$ErrorActionPreference = 'Stop'
+$url = 'https://carteljp01.github.io/cartelera/'
+$chrome = @(
+  "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+  "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+  "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
+) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+if (-not $chrome) { Write-Host 'No encontre Chrome instalado.' -ForegroundColor Red; return }
+$w = New-Object -ComObject WScript.Shell
+foreach ($carpeta in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Startup'))) {
+  $s = $w.CreateShortcut((Join-Path $carpeta 'Cartel COT.lnk'))
+  $s.TargetPath = $chrome
+  $s.Arguments = "--autoplay-policy=no-user-gesture-required --start-fullscreen $url"
+  $s.IconLocation = "$chrome,0"
+  $s.Save()
+}
+Write-Host ''
+Write-Host 'LISTO. Se creo "Cartel COT" en el escritorio y en el inicio de Windows.' -ForegroundColor Green
+Write-Host 'Ahora: cerra Chrome por completo y abri "Cartel COT" desde el escritorio.' -ForegroundColor Green
