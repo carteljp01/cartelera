@@ -228,11 +228,13 @@ body:not(.pausado) [data-editar] { cursor: none; }
   z-index: 10;
 }
 
-/* TARIFAS queda centrado y la aclaración de la tasa va a la derecha */
-.tarifa-titulo { position: relative; }
+/* TARIFAS queda centrado y la aclaración va pegada a su derecha */
+.tarifa-palabra { position: relative; }
 #notaTarifas {
   position: absolute;
-  right: 0;
+  left: 100%;
+  margin-left: 1.6vh;
+  white-space: nowrap;
   top: 50%;
   transform: translateY(-50%);
   font-size: 2.6vh;
