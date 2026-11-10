@@ -18,10 +18,10 @@ window.CARTEL = {
   // Música de fondo
   // - Con internet suena la primera radio de la lista (R en el teclado cambia).
   // - Sin internet, o si la radio se cae, pasa los MP3 de la carpeta "musica".
-  // - activa: false para apagar todo · volumen de 0 a 1 (arranca bajito)
+  // - activa: false para apagar todo · volumen de 0 a 1 (1 = al máximo; se baja con la tele o con -)
   musica: {
     activa: true,
-    volumen: 0.25,
+    volumen: 1,
     radios: [
       { nombre: "Atlántica FM 89.3", url: "https://atlanticafm.radioca.st/stream" },
       { nombre: "FM Coronilla 102.3", url: "https://streaming01.shockmedia.com.ar/9184/stream" },
