@@ -19,6 +19,9 @@ window.CARTEL = {
   // activa: false para apagarla · volumen de 0 a 1
   musica: { activa: true, volumen: 0.4 },
 
+  // Aclaración que va al lado de TARIFAS (dejar "" para no mostrar nada)
+  notaTarifas: "Incluye tasa de embarque $10",
+
   tarifas: [
     { destino: "Coronilla",    precio: 100 },
     { destino: "Fortaleza",    precio: 100 },

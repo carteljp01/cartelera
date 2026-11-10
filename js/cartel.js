@@ -74,6 +74,9 @@
     cont.innerHTML = panelHTML("salidas") + panelHTML("retornos");
     cont.children[indice].classList.add("activo");
 
+    const nota = document.getElementById("notaTarifas");
+    if (nota) nota.textContent = datos.notaTarifas ? "· " + datos.notaTarifas : "";
+
     document.getElementById("tarifas").innerHTML = datos.tarifas
       .map(
         (t, i) => `
