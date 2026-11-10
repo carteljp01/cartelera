@@ -20,7 +20,7 @@ window.CARTEL = {
   musica: { activa: true, volumen: 0.4 },
 
   // Aclaración que va al lado de TARIFAS (dejar "" para no mostrar nada)
-  notaTarifas: "Incluye tasa de embarque $10",
+  notaTarifas: "Incluye tasa de uso $10",
 
   tarifas: [
     { destino: "Coronilla",    precio: 100 },
