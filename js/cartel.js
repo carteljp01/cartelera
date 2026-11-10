@@ -177,7 +177,7 @@
     try { localStorage.removeItem(CLAVE_EDICIONES); } catch (e) {}
     datos = clonar(ORIGINAL);
     dibujar();
-    aviso("Volvió a los datos de GitHub", "info", 3000);
+    aviso("Precios restablecidos ✓", "info", 3000);
     informar();
   }
 

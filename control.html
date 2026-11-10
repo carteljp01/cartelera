@@ -126,7 +126,7 @@
     .tarifa-fila.cambiada .precio-wrap { background: #b00000; }
     .tarifa-fila.cambiada .precio-wrap input, .tarifa-fila.cambiada .precio-wrap input:focus { background: transparent; text-decoration: underline; }
     .nota-label { display: block; margin-top: 10px; font-size: 14px; color: var(--gris); }
-    .nota-label input { display: block; width: 100%; margin-top: 4px; font: 400 18px/1.2 "triad", monospace; padding: 10px; border-radius: 0; border: 2px solid var(--marron); outline: none; }
+    .nota-input { display: block; width: 100%; margin-top: 10px; font: 400 18px/1.2 "triad", monospace; padding: 10px; border-radius: 0; border: 2px solid var(--marron); outline: none; }
     .secundario { width: 100%; justify-content: center; background: var(--fila); font: 400 16px/1 "triad", monospace; margin-top: 2px; }
     .quitar { width: 100%; justify-content: center; background: var(--marron); color: #fff; font: 400 18px/1 "bigdots", monospace; margin: 2px 0 14px; }
     .principal { background: var(--naranja); color: #fff; font: 400 18px/1 "bigdots", monospace; justify-content: center; padding: 12px 18px; }
@@ -158,7 +158,7 @@
   <main>
     <section id="configurar">
       <h2>PRIMERA VEZ</h2>
-      <p>Ingresá el código del control (el mismo que cargaste en la tele).</p>
+      <p>Ingresá el código.</p>
       <input id="codigo" autocomplete="off" autocapitalize="off" placeholder="código">
       <button class="principal" id="guardarCodigo">Guardar</button>
     </section>
@@ -195,13 +195,10 @@
 
     <section class="requiere">
       <h2>TARIFAS</h2>
-      <div class="origen-tarifas" id="origenTarifas">Esperando la tele…</div>
       <div class="tarifas" id="tarifasLista"></div>
-      <label class="nota-label">Aclaración junto a TARIFAS
-        <input id="notaTarifas" maxlength="60" placeholder="Incluye tasa de uso $10">
-      </label>
+      <input id="notaTarifas" class="nota-input" maxlength="60" placeholder="Incluye tasa de uso $10">
       <button class="principal enviar" id="guardarTarifas">GUARDAR TARIFAS EN LA TELE</button>
-      <button class="secundario" id="volverGithub">VOLVER A LAS DE GITHUB</button>
+      <button class="secundario" id="volverGithub">RESTABLECER PRECIOS</button>
     </section>
 
     <section class="requiere">
@@ -304,16 +301,16 @@
       const r = ultimo.radio || {};
       if (r.bloqueada) {
         $("sonando").textContent = "Sonido bloqueado";
-        $("sonandoSub").textContent = "Alguien tiene que tocar una tecla en la tele (o permitir reproducción automática en el navegador).";
+        $("sonandoSub").textContent = "Tocá una tecla en la tele.";
       } else if (r.modo === "vivo") {
         $("sonando").textContent = r.sonando;
         $("sonandoSub").textContent = "En vivo" + (r.mudo ? " · silenciada" : "");
       } else if (r.sonando) {
         $("sonando").textContent = r.sonando;
-        $("sonandoSub").textContent = "Canciones propias" + (r.mudo ? " · silenciada" : "");
+        $("sonandoSub").textContent = "Mis canciones" + (r.mudo ? " · silenciada" : "");
       } else {
         $("sonando").textContent = "Silencio";
-        $("sonandoSub").textContent = r.canciones ? "" : "La radio no responde y no hay canciones en la carpeta musica.";
+        $("sonandoSub").textContent = r.canciones ? "" : "La radio no responde.";
       }
       if (typeof r.volumen === "number" && document.activeElement !== $("vol")) {
         $("vol").value = r.volumen;
@@ -347,8 +344,6 @@
     let tarifasTele = [];
     function dibujarTarifas() {
       if (!ultimo || !Array.isArray(ultimo.tarifas)) return;
-      $("origenTarifas").textContent = ultimo.editado ? "● Cambiadas desde el control (no son las de GitHub)" : "Usando las de GitHub";
-      $("origenTarifas").classList.toggle("editado", !!ultimo.editado);
       if (editandoTarifas) return;
       tarifasTele = ultimo.tarifas;
       $("tarifasLista").innerHTML = "";
@@ -397,7 +392,7 @@
     fuente.onopen = () => enviar("estado");
     setInterval(dibujarConexion, 10000);
     // si en 10 s no contestó nada, avisar
-    setTimeout(() => { if (!ultimoMomento) { $("sonandoSub").textContent = "La tele no responde. ¿Está prendida, con internet y con el código cargado?"; } }, 10000);
+    setTimeout(() => { if (!ultimoMomento) { $("sonandoSub").textContent = "La tele no responde."; } }, 10000);
 
     /* ---------- Botones ---------- */
 
@@ -442,9 +437,9 @@
       enviar("tarifas", { tarifas: filas, nota: $("notaTarifas").value }, "Tarifas enviadas a la tele");
     };
     $("volverGithub").onclick = () => {
-      if (!confirm("¿Descartar los cambios hechos desde el control y volver a las tarifas de GitHub?")) return;
+      if (!confirm("¿Volver a los precios originales?")) return;
       editandoTarifas = false;
-      enviar("volver-github", null, "Volviendo a las de GitHub");
+      enviar("volver-github", null, "Restableciendo precios");
     };
 
     dibujar();
