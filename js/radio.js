@@ -134,19 +134,31 @@
 
   /* ---------- Radio en vivo ---------- */
 
-  async function arrancarVivo() {
+  // Una radio puede tener varios enlaces: si uno falla prueba el siguiente
+  let enlace = 0;
+  const enlacesDe = (r) => (Array.isArray(r.url) ? r.url : [r.url]);
+
+  async function arrancarVivo(siguienteEnlace) {
     const r = RADIOS[elegida];
+    const enlaces = enlacesDe(r);
+    enlace = siguienteEnlace ? enlace + 1 : 0;
+    if (enlace >= enlaces.length) { pasarALocal(); return; }
     clearTimeout(reintento);
     modo = "vivo";
-    sonando = r.nombre || r.url;
+    sonando = r.nombre || enlaces[enlace];
     soltarBlob();
-    audio.src = r.url;
+    audio.src = enlaces[enlace];
     audio.volume = 0;
     try {
       await reproducir();
     } catch (e) {
-      pasarALocal();
+      falloVivo();
     }
+  }
+
+  function falloVivo() {
+    if (enlace + 1 < enlacesDe(RADIOS[elegida]).length) arrancarVivo(true);
+    else pasarALocal();
   }
 
   function pasarALocal() {
@@ -177,7 +189,7 @@
     if (audio.currentTime === ultimoTiempo) quieto += 5;
     else quieto = 0;
     ultimoTiempo = audio.currentTime;
-    if (quieto >= 20) { quieto = 0; pasarALocal(); }
+    if (quieto >= 20) { quieto = 0; falloVivo(); }
   }, 5000);
 
   /* ---------- Canciones propias ---------- */
@@ -216,10 +228,10 @@
       fundir(0, Math.max(0.2, resta));
     }
   });
-  audio.addEventListener("ended", () => (modo === "vivo" ? pasarALocal() : siguiente()));
+  audio.addEventListener("ended", () => (modo === "vivo" ? falloVivo() : siguiente()));
   audio.addEventListener("error", () => {
     if (!audio.getAttribute("src")) return;
-    if (modo === "vivo") pasarALocal();
+    if (modo === "vivo") falloVivo();
     else setTimeout(siguiente, 1000);
   });
 
