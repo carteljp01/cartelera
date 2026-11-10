@@ -70,7 +70,12 @@
       case "pantalla": c.cambiar && c.cambiar(); setTimeout(() => informar(true), 2500); return;
       case "actualizar": c.actualizar && c.actualizar(); return;
       case "recargar": location.reload(); return;
-      case "aviso": c.aviso && c.aviso(String(orden.valor || "").slice(0, 140), "publico", 15000); return;
+      case "alerta": {
+        const v = orden.valor || {};
+        c.alerta && c.alerta(v.texto, Number(v.segundos) || 0, v.color);
+        return;
+      }
+      case "quitar-alerta": c.quitarAlerta && c.quitarAlerta(); return;
     }
   }
 

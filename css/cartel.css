@@ -32,9 +32,12 @@ body.pausado { cursor: auto; }
 /* Todo se mide en vh para que entre igual en cualquier tele */
 body {
   display: grid;
-  grid-template-rows: 13vh 1fr 23vh;
+  grid-template-rows: 13vh minmax(0, 1fr) 23vh;
   grid-template-columns: minmax(0, 1fr);
 }
+#cabezal    { grid-row: 1; grid-column: 1; }
+#pantallas  { grid-row: 2; grid-column: 1; }
+#pie        { grid-row: 3; grid-column: 1; }
 
 /* ---------- Cabezal ---------- */
 #cabezal {
@@ -241,15 +244,52 @@ body:not(.pausado) [data-editar] { cursor: none; }
   color: #ffd29a;
 }
 
-/* Aviso al público mandado desde el control remoto */
-#aviso.publico {
-  top: auto;
-  bottom: 25vh;
-  max-width: 90vw;
-  padding: 1.6vh 3vh;
-  background: #f0511a;
-  font-size: 4.2vh;
-  font-weight: 700;
-  border-radius: 0;
-  box-shadow: 0 1vh 3vh rgba(0, 0, 0, 0.35);
+/* ---------- Alerta grande: tapa todo el recuadro de horarios ---------- */
+#alerta {
+  grid-row: 2;
+  grid-column: 1;
+  z-index: 5;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #b00000;
+  color: #fff;
+}
+#alerta[hidden] { display: none; }
+#alerta.naranja { background: #c2410c; }
+.alerta-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3vh;
+  height: 10vh;
+  font-family: var(--fuente-titulo);
+  font-size: 7vh;
+  background: rgba(0, 0, 0, 0.25);
+  animation: titila 1.2s steps(1) infinite;
+}
+.alerta-led {
+  width: 2.2vh;
+  height: 2.2vh;
+  background: #ffea00;
+  box-shadow: 0 0 1vh #ffea00, 0 0 2.5vh #ffea00;
+}
+@keyframes titila { 50% { opacity: 0.35; } }
+.alerta-caja {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2vh 4vh;
+  overflow: hidden;
+}
+.alerta-texto {
+  font-family: var(--fuente-titulo);
+  line-height: 1.12;
+  text-align: center;
+  text-transform: uppercase;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }

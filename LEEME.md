@@ -25,7 +25,9 @@
   y anotar autor y título en `musica/creditos.txt`.
 
 ## Control remoto (desde el celular)
-- Página: `control.html` → cambiar radio, volumen, silenciar, pausar, cambiar pantalla, buscar cambios, recargar y mandar un aviso al público.
+- Página: `control.html` → cambiar radio, volumen, silenciar, pausar, cambiar pantalla, buscar cambios y recargar.
+- **Aviso en la tele**: tapa todo el recuadro de horarios (rojo = alerta, naranja = aviso). Duración: 1, 5, 15, 30 min, 1 hora o hasta quitarlo.
+  Si la tele se recarga, el aviso sigue hasta que vence. Se quita con QUITAR AVISO.
 - Usa ntfy.sh (gratis) con un código secreto. **El código no está en GitHub**:
   - En la tele se abre una sola vez: `carteljp01.github.io/cartelera/?control=CÓDIGO`
   - En el celular: `carteljp01.github.io/cartelera/control.html?c=CÓDIGO`

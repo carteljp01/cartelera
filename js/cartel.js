@@ -209,6 +209,65 @@
     if (ms) temporizadorAviso = setTimeout(() => aviso(""), ms);
   }
 
+  /* ---------------- Alerta grande (tapa los horarios) ----------------
+     Se manda desde el control remoto. Queda guardada con su vencimiento,
+     así si la tele se recarga la alerta sigue hasta que vence o se quita. */
+
+  const CLAVE_ALERTA = "cartelAlerta";
+  let alertaActual = null;
+  let temporizadorAlerta = null;
+
+  function alerta(texto, segundos, color) {
+    texto = String(texto || "").trim().slice(0, 200);
+    if (!texto) return quitarAlerta();
+    const hasta = segundos > 0 ? Date.now() + segundos * 1000 : 0; // 0 = hasta quitarla
+    alertaActual = { texto, hasta, color: color === "naranja" ? "naranja" : "rojo" };
+    try { localStorage.setItem(CLAVE_ALERTA, JSON.stringify(alertaActual)); } catch (e) {}
+    mostrarAlerta();
+    informar();
+  }
+
+  function quitarAlerta() {
+    alertaActual = null;
+    clearTimeout(temporizadorAlerta);
+    try { localStorage.removeItem(CLAVE_ALERTA); } catch (e) {}
+    const el = document.getElementById("alerta");
+    if (el) el.hidden = true;
+    informar();
+  }
+
+  function mostrarAlerta() {
+    const el = document.getElementById("alerta");
+    if (!el || !alertaActual) return;
+    clearTimeout(temporizadorAlerta);
+    if (alertaActual.hasta && alertaActual.hasta <= Date.now()) return quitarAlerta();
+    el.className = alertaActual.color;
+    el.hidden = false;
+    const t = document.getElementById("alertaTexto");
+    t.textContent = alertaActual.texto;
+    ajustarTexto(t);
+    if (alertaActual.hasta) {
+      temporizadorAlerta = setTimeout(quitarAlerta, Math.min(alertaActual.hasta - Date.now(), 2147483000));
+    }
+  }
+
+  // Letra lo más grande posible sin que se salga del recuadro
+  function ajustarTexto(t) {
+    const caja = t.parentElement;
+    let tam = 22; // en vh
+    t.style.fontSize = tam + "vh";
+    while (tam > 3 && (t.scrollHeight > caja.clientHeight || t.scrollWidth > caja.clientWidth)) {
+      tam -= 0.5;
+      t.style.fontSize = tam + "vh";
+    }
+  }
+  window.addEventListener("resize", () => alertaActual && mostrarAlerta());
+
+  function restaurarAlerta() {
+    try { alertaActual = JSON.parse(localStorage.getItem(CLAVE_ALERTA)); } catch (e) { alertaActual = null; }
+    if (alertaActual) mostrarAlerta();
+  }
+
   function estadoConexion() {
     const red = navigator.onLine ? "con internet" : "sin internet (mostrando la copia guardada)";
     const chequeo = ultimoChequeo
@@ -280,6 +339,8 @@
   /* ---------------- Arranque ---------------- */
 
   dibujar();
+  restaurarAlerta();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => alertaActual && mostrarAlerta());
   reloj();
   setInterval(reloj, 1000);
   setInterval(cambiarPantalla, (Number(datos.segundosPorPantalla) || 40) * 1000);
@@ -299,10 +360,13 @@
     actualizar: () => buscarActualizacion(true),
     aviso,
     pausar: alternarPausa,
+    alerta,
+    quitarAlerta,
     informar,
     datos: () => ({
       pausado,
       pantalla: indice === 0 ? "Salidas" : "Retornos",
+      alerta: alertaActual,
       enLinea: navigator.onLine,
       ultimoChequeo: ultimoChequeo ? `${dos(ultimoChequeo.getHours())}:${dos(ultimoChequeo.getMinutes())}` : "",
     }),

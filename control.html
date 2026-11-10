@@ -88,11 +88,21 @@
     .volumen button { min-width: 96px; justify-content: center; padding: 10px; background: var(--fila); font: 400 16px/1 "triad", monospace; }
     .volumen button.mudo { background: #c00; color: #fff; }
 
-    .aviso { display: flex; }
-    .aviso input {
-      flex: 1; min-width: 0; font: inherit; padding: 12px; border-radius: 0;
-      border: 2px solid var(--marron); border-right: 0; outline: none;
+    textarea {
+      width: 100%; font: 400 20px/1.2 "triad", monospace; padding: 12px; border-radius: 0;
+      border: 2px solid var(--marron); outline: none; resize: vertical; text-transform: uppercase;
     }
+    .opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--marron); border: 2px solid var(--marron); margin-top: 10px; }
+    .opciones.tiempos { grid-template-columns: 1fr 1fr 1fr; }
+    .opciones button { justify-content: center; text-align: center; font: 400 15px/1.1 "triad", monospace; min-height: 46px; padding: 8px 4px; }
+    .opciones button.elegido { background: var(--marron-2); color: #fff; }
+    .opciones button.c-rojo.elegido { background: #b00000; }
+    .opciones button.c-naranja.elegido { background: #c2410c; }
+    .enviar { width: 100%; margin-top: 10px; min-height: 54px; }
+    .alerta-activa { background: #b00000; color: #fff; padding: 12px; font: 400 18px/1.2 "triad", monospace; text-transform: uppercase; }
+    .alerta-activa.naranja { background: #c2410c; }
+    .alerta-activa small { display: block; font-size: 14px; opacity: 0.85; margin-top: 4px; text-transform: none; }
+    .quitar { width: 100%; justify-content: center; background: var(--marron); color: #fff; font: 400 18px/1 "bigdots", monospace; margin: 2px 0 14px; }
     .principal { background: var(--naranja); color: #fff; font: 400 18px/1 "bigdots", monospace; justify-content: center; padding: 12px 18px; }
     .nota { color: var(--gris); font-size: 13px; margin-top: 8px; }
 
@@ -159,12 +169,27 @@
 
     <section class="requiere">
       <h2>AVISO EN LA TELE</h2>
-      <div class="aviso">
-        <input id="avisoTxt" maxlength="140" placeholder="Ej: El de las 16:30 sale con demora">
-        <button class="principal" id="avisoBtn">Enviar</button>
+      <div id="alertaActiva" hidden>
+        <div class="alerta-activa"><span id="alertaActivaTxt"></span><small id="alertaActivaHasta"></small></div>
+        <button class="quitar" id="quitarAlerta">QUITAR AVISO</button>
       </div>
-      <p class="nota">Aparece grande en el medio de la tele durante 15 segundos.</p>
+      <textarea id="avisoTxt" maxlength="200" rows="3" placeholder="Ej: SERVICIO CANCELADO · ALERTA ROJA"></textarea>
+      <div class="opciones" id="colores">
+        <button data-color="rojo" class="elegido c-rojo">ROJO · ALERTA</button>
+        <button data-color="naranja" class="c-naranja">NARANJA · AVISO</button>
+      </div>
+      <div class="opciones tiempos" id="tiempos">
+        <button data-seg="60">1 MIN</button>
+        <button data-seg="300">5 MIN</button>
+        <button data-seg="900" class="elegido">15 MIN</button>
+        <button data-seg="1800">30 MIN</button>
+        <button data-seg="3600">1 HORA</button>
+        <button data-seg="0">HASTA QUITARLO</button>
+      </div>
+      <button class="principal enviar" id="avisoBtn">MOSTRAR EN LA TELE</button>
+      <p class="nota">Tapa todo el recuadro de horarios. Las tarifas y el reloj siguen visibles.</p>
     </section>
+
   </main>
 
   <div id="toast"></div>
@@ -242,7 +267,7 @@
       if (!ultimo) return;
       const r = ultimo.radio || {};
       if (r.bloqueada) {
-        $("sonando").textContent = "🔈 Sonido bloqueado";
+        $("sonando").textContent = "Sonido bloqueado";
         $("sonandoSub").textContent = "Alguien tiene que tocar una tecla en la tele (o permitir reproducción automática en el navegador).";
       } else if (r.modo === "vivo") {
         $("sonando").textContent = r.sonando;
@@ -261,7 +286,24 @@
       $("mudo").textContent = r.mudo ? "ACTIVAR" : "SILENCIAR";
       $("mudo").classList.toggle("mudo", !!r.mudo);
       $("pausa").textContent = ultimo.pausado ? "SEGUIR" : "PAUSAR";
+      dibujarAlerta();
     }
+
+    function dibujarAlerta() {
+      const a = ultimo && ultimo.alerta;
+      const vigente = a && (!a.hasta || a.hasta > Date.now());
+      $("alertaActiva").hidden = !vigente;
+      if (!vigente) return;
+      $("alertaActivaTxt").textContent = a.texto;
+      $("alertaActivaTxt").parentElement.className = "alerta-activa " + (a.color || "rojo");
+      if (a.hasta) {
+        const h = new Date(a.hasta);
+        $("alertaActivaHasta").textContent = "En pantalla hasta las " + String(h.getHours()).padStart(2, "0") + ":" + String(h.getMinutes()).padStart(2, "0");
+      } else {
+        $("alertaActivaHasta").textContent = "En pantalla hasta que lo quites";
+      }
+    }
+    setInterval(() => ultimo && dibujarAlerta(), 15000);
 
     function dibujarConexion() {
       const seg = (Date.now() - ultimoMomento) / 1000;
@@ -305,12 +347,21 @@
       const p = !(ultimo && ultimo.pausado);
       enviar("pausa", p, p ? "Pausando el cartel" : "Cartel en marcha");
     };
+    // Alerta grande
+    let color = "rojo";
+    let segundos = 900;
+    const elegir = (grupo, btn) => {
+      grupo.querySelectorAll("button").forEach((b) => b.classList.toggle("elegido", b === btn));
+    };
+    $("colores").querySelectorAll("button").forEach((b) => (b.onclick = () => { color = b.dataset.color; elegir($("colores"), b); }));
+    $("tiempos").querySelectorAll("button").forEach((b) => (b.onclick = () => { segundos = Number(b.dataset.seg); elegir($("tiempos"), b); }));
     $("avisoBtn").onclick = () => {
       const t = $("avisoTxt").value.trim();
-      if (!t) return;
-      enviar("aviso", t, "Aviso enviado");
+      if (!t) { $("avisoTxt").focus(); return; }
+      enviar("alerta", { texto: t, segundos, color }, "Aviso en pantalla");
       $("avisoTxt").value = "";
     };
+    $("quitarAlerta").onclick = () => enviar("quitar-alerta", null, "Quitando aviso");
 
     dibujar();
   })();
