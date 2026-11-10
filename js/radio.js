@@ -118,6 +118,7 @@
       bloqueada = false;
       ocultarAvisoBloqueo();
       fundir(volumenDeseado(), CFG.segundosFundido);
+      cambio();
     } catch (e) {
       if (e && e.name === "NotAllowedError") {
         bloqueada = true;
@@ -290,28 +291,42 @@
     return quiereVivo() ? RADIOS[elegida].nombre : "Mis canciones";
   }
 
+  // Acciones (las usan el teclado y el control remoto)
+  function alternarMudo(valor) {
+    mudo = typeof valor === "boolean" ? valor : !mudo;
+    guardar(CLAVE_MUDO, mudo);
+    fundir(volumenDeseado(), 0.4);
+    avisar(mudo ? "🔇 Música silenciada" : `🔊 Música activada · volumen ${Math.round(volumen * 100)}%`);
+    cambio();
+  }
+  function ponerVolumen(v) {
+    volumen = Math.min(1, Math.max(0.05, Number(v) || 0));
+    guardar(CLAVE_VOL, volumen);
+    if (!mudo) fundir(volumen, 0.2);
+    avisar(`🔊 Volumen ${Math.round(volumen * 100)}%`);
+    cambio();
+  }
+  function elegirRadio(i) {
+    if (!RADIOS.length && i !== 0) return;
+    elegida = ((Number(i) % (RADIOS.length + 1)) + RADIOS.length + 1) % (RADIOS.length + 1);
+    guardar(CLAVE_EMISORA, elegida);
+    avisar(`📻 ${nombreElegida()}`);
+    fundir(0, 0.3, () => { decidir(); setTimeout(cambio, 3000); });
+  }
+
   document.addEventListener("keydown", (e) => {
     if (e.target.isContentEditable) return;
     const k = e.key.toLowerCase();
-    if (k === "m") {
-      mudo = !mudo;
-      guardar(CLAVE_MUDO, mudo);
-      fundir(volumenDeseado(), 0.4);
-      avisar(mudo ? "🔇 Música silenciada" : `🔊 Música activada · volumen ${Math.round(volumen * 100)}%`);
-    }
-    if (k === "+" || k === "=" || k === "-") {
-      volumen = Math.min(1, Math.max(0.05, volumen + (k === "-" ? -0.05 : 0.05)));
-      guardar(CLAVE_VOL, volumen);
-      if (!mudo) fundir(volumen, 0.2);
-      avisar(`🔊 Volumen ${Math.round(volumen * 100)}%`);
-    }
-    if (k === "r" && RADIOS.length) {
-      elegida = (elegida + 1) % (RADIOS.length + 1);
-      guardar(CLAVE_EMISORA, elegida);
-      avisar(`📻 ${nombreElegida()}`);
-      fundir(0, 0.3, decidir);
-    }
+    if (k === "m") alternarMudo();
+    if (k === "+" || k === "=") ponerVolumen(volumen + 0.05);
+    if (k === "-") ponerVolumen(volumen - 0.05);
+    if (k === "r" && RADIOS.length) elegirRadio(elegida + 1);
   });
+
+  // Avisa al control remoto que algo cambió
+  function cambio() {
+    if (window.cartel && window.cartel.informar) window.cartel.informar();
+  }
 
   function avisar(texto) {
     if (window.cartel && window.cartel.aviso) window.cartel.aviso(texto, "info", 2500);
@@ -321,9 +336,9 @@
 
   async function cargar() {
     const nueva = await obtenerLista();
-    const cambio = nueva.join("|") !== lista.join("|");
+    const distinta = nueva.join("|") !== lista.join("|");
     lista = nueva;
-    if (cambio) {
+    if (distinta) {
       mezclar();
       if (modo === "local" && (!sonando || !lista.includes(sonando))) {
         audio.pause();
@@ -350,6 +365,22 @@
       const extra = quiereVivo() ? ` · sin conexión con ${nombreElegida()}, reintenta cada 2 min` : "";
       return `Música: ${vol} · sonando «${nombreBonito(sonando)}»${extra}`;
     },
+    datos() {
+      return {
+        radios: RADIOS.map((r) => r.nombre),
+        elegida,
+        modo,
+        sonando: modo === "vivo" ? sonando : sonando ? nombreBonito(sonando) : "",
+        volumen: Math.round(volumen * 100),
+        mudo,
+        bloqueada,
+        canciones: lista.length,
+      };
+    },
+    alternarMudo,
+    ponerVolumen,
+    elegirRadio,
+    siguienteRadio: () => elegirRadio(elegida + 1),
     siguiente,
   };
 })();

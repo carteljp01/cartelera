@@ -11,6 +11,8 @@ const PRECARGA = [
   "./datos.js",
   "./js/cartel.js",
   "./js/radio.js",
+  "./js/remoto.js",
+  "./control.html",
   "./musica/lista.js",
   "./css/cartel.css",
   "./img/Cot_logo_Solo.svg",

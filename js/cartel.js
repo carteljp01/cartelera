@@ -217,8 +217,8 @@
     return EN_LINEA_POSIBLE ? red + chequeo : "abierto desde la carpeta (sin actualización automática)";
   }
 
-  function alternarPausa() {
-    pausado = !pausado;
+  function alternarPausa(valor) {
+    pausado = typeof valor === "boolean" ? valor : !pausado;
     document.body.classList.toggle("pausado", pausado);
     if (pausado) {
       aviso(
@@ -227,6 +227,12 @@
     } else {
       aviso("");
     }
+    informar();
+  }
+
+  // El control remoto (js/remoto.js) se entera de los cambios por acá
+  function informar() {
+    if (window.remoto && window.remoto.informar) window.remoto.informar();
   }
 
   /* ---------------- Actualizador ----------------
@@ -234,7 +240,7 @@
      publicados con los que se están mostrando. Si cambió algo,
      recarga la página sola. Si no hay internet, no hace nada. */
 
-  const ARCHIVOS = ["datos.js", "js/cartel.js", "js/radio.js", "css/cartel.css", "index.html"];
+  const ARCHIVOS = ["datos.js", "js/cartel.js", "js/radio.js", "js/remoto.js", "css/cartel.css", "index.html"];
   let huella = null;
 
   async function leerPublicado() {
@@ -288,5 +294,17 @@
   }
 
   // Para probar rápido desde la consola: cartel.cambiar()
-  window.cartel = { cambiar: cambiarPantalla, actualizar: () => buscarActualizacion(true), aviso };
+  window.cartel = {
+    cambiar: cambiarPantalla,
+    actualizar: () => buscarActualizacion(true),
+    aviso,
+    pausar: alternarPausa,
+    informar,
+    datos: () => ({
+      pausado,
+      pantalla: indice === 0 ? "Salidas" : "Retornos",
+      enLinea: navigator.onLine,
+      ultimoChequeo: ultimoChequeo ? `${dos(ultimoChequeo.getHours())}:${dos(ultimoChequeo.getMinutes())}` : "",
+    }),
+  };
 })();

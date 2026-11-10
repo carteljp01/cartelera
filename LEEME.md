@@ -24,6 +24,14 @@
 - Usar solo música con licencia que permita pasarla en un local (por ejemplo Creative Commons CC BY o CC0)
   y anotar autor y título en `musica/creditos.txt`.
 
+## Control remoto (desde el celular)
+- Página: `control.html` → cambiar radio, volumen, silenciar, pausar, cambiar pantalla, buscar cambios, recargar y mandar un aviso al público.
+- Usa ntfy.sh (gratis) con un código secreto. **El código no está en GitHub**:
+  - En la tele se abre una sola vez: `carteljp01.github.io/cartelera/?control=CÓDIGO`
+  - En el celular: `carteljp01.github.io/cartelera/control.html?c=CÓDIGO`
+  - Cada uno lo guarda para siempre. Para desactivar el control en la tele: `?control=no`.
+- Si la tele no tiene internet, las órdenes no llegan (el cartel sigue funcionando igual).
+
 ## Sin internet
 La primera vez que se abre con internet, el cartel queda guardado en la PC.
 Después funciona aunque no haya conexión, y se pone al día solo cuando vuelve.
