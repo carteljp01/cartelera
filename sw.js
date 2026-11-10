@@ -67,8 +67,9 @@ self.addEventListener("fetch", (e) => {
         return res;
       }
       try {
+        // "no-cache": siempre pregunta a GitHub si hay algo nuevo (no usa copias viejas del navegador)
         const res = await Promise.race([
-          fetch(req),
+          fetch(req, { cache: "no-cache" }),
           new Promise((_, no) => setTimeout(() => no(new Error("lenta")), ESPERA_RED_MS)),
         ]);
         if (res && res.ok) cache.put(clave, res.clone());
