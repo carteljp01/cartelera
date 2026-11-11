@@ -52,7 +52,7 @@
     section { padding: 0 16px 18px; background: #fff; }
     /* Secciones intercaladas: blanco / gris, para separarlas bien */
     main > section:nth-of-type(even) { background: #e9e6e3; --fila: #ffffff; }
-    main > section:nth-of-type(even) .lista button:nth-child(even),
+    main > section:nth-of-type(even) .lista .radio-fila:nth-child(even) button,
     main > section:nth-of-type(even) .tarifa-fila:nth-child(even) { background: #f6f4f2; }
     h2 {
       margin: 0 -16px 12px;
@@ -81,10 +81,32 @@
       align-items: center;
       gap: 10px;
     }
-    .lista button { font: 400 20px/1.1 "triad", monospace; }
-    .lista button:nth-child(odd) { background: var(--fila); }
-    .lista button.activa { background: var(--naranja); color: #fff; }
-    .lista button.activa::after { content: "◀ SONANDO"; margin-left: auto; font-size: 14px; white-space: nowrap; }
+    .radio-fila { display: flex; }
+    .radio-fila .elegir { flex: 1; min-width: 0; font: 400 20px/1.1 "triad", monospace; }
+    .radio-fila:nth-child(odd) button { background: var(--fila); }
+    .radio-fila .elegir.activa { background: var(--naranja); color: #fff; }
+    .radio-fila .elegir.activa::after { content: "◀ SONANDO"; margin-left: auto; font-size: 14px; white-space: nowrap; }
+    .radio-fila .quitar-radio { flex: none; width: 52px; justify-content: center; font: 400 18px/1 "triad", monospace; color: #b00000; }
+    .radio-fila .elegir.activa + .quitar-radio { background: var(--naranja); color: #fff; }
+
+    .agregar-abrir { width: 100%; justify-content: center; margin-top: 10px; border: 2px dashed var(--marron); background: transparent; font: 400 18px/1 "triad", monospace; }
+    #agregarPanel { margin-top: 10px; border: 2px solid var(--marron); background: #fff; }
+    #agregarPanel h3 { font: 400 15px/1 "bigdots", monospace; background: var(--marron-2); color: #fff; padding: 8px 12px; letter-spacing: 0.04em; }
+    .buscador { display: flex; }
+    .buscador input, .manual input {
+      flex: 1; min-width: 0; font: 400 18px/1.2 "triad", monospace; padding: 12px; border: 0; border-bottom: 2px solid var(--marron); border-radius: 0; outline: none;
+    }
+    .buscador button, .manual button { background: var(--naranja); color: #fff; font: 400 16px/1 "bigdots", monospace; justify-content: center; }
+    #resultados { max-height: 360px; overflow-y: auto; }
+    .resultado { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #ddd; }
+    .resultado:nth-child(odd) { background: #f6f4f2; }
+    .resultado div { flex: 1; min-width: 0; }
+    .resultado b { display: block; font: 400 17px/1.15 "triad", monospace; overflow-wrap: anywhere; }
+    .resultado small { color: var(--gris); font-size: 12px; }
+    .resultado button { flex: none; min-height: 40px; padding: 8px 12px; background: var(--naranja); color: #fff; font: 400 14px/1 "triad", monospace; }
+    .resultado.vacio { color: var(--gris); font-size: 14px; }
+    .manual { display: grid; }
+    .manual button { min-height: 48px; }
     button:active { filter: brightness(0.9); }
 
     .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--marron); border: 2px solid var(--marron); }
@@ -172,6 +194,21 @@
     <section class="requiere">
       <h2>RADIO</h2>
       <div class="lista" id="radios"></div>
+      <button class="agregar-abrir" id="agregarAbrir">+ AGREGAR RADIO</button>
+      <div id="agregarPanel" hidden>
+        <h3>BUSCAR</h3>
+        <div class="buscador">
+          <input id="buscarTxt" placeholder="Ej: Del Sol" autocomplete="off" enterkeyhint="search">
+          <button id="buscarBtn">BUSCAR</button>
+        </div>
+        <div id="resultados"></div>
+        <h3>O PEGAR EL ENLACE</h3>
+        <div class="manual">
+          <input id="manualNombre" placeholder="Nombre de la radio" maxlength="40">
+          <input id="manualUrl" placeholder="https://..." inputmode="url" autocomplete="off">
+          <button id="manualBtn">AGREGAR</button>
+        </div>
+      </div>
     </section>
 
     <section class="requiere">
@@ -286,12 +323,25 @@
       const elegida = ultimo && ultimo.radio ? ultimo.radio.elegida : -1;
       const items = nombres.concat(["Mis canciones"]);
       $("radios").innerHTML = "";
+      const fijas = ultimo && ultimo.radio && typeof ultimo.radio.fijas === "number" ? ultimo.radio.fijas : nombres.length;
       items.forEach((n, i) => {
+        const fila = document.createElement("div");
+        fila.className = "radio-fila";
         const b = document.createElement("button");
-        b.textContent = n.replace(/^🎵 /, "");
+        b.className = "elegir";
+        b.textContent = n;
         if (i === elegida) b.classList.add("activa");
-        b.onclick = () => enviar("radio", i, "Cambiando a " + n.replace(/^🎵 /, ""));
-        $("radios").appendChild(b);
+        b.onclick = () => enviar("radio", i, "Cambiando a " + n);
+        fila.appendChild(b);
+        if (i >= fijas && i < nombres.length) {
+          const x = document.createElement("button");
+          x.className = "quitar-radio";
+          x.textContent = "✕";
+          x.setAttribute("aria-label", "Quitar " + n);
+          x.onclick = () => { if (confirm("¿Quitar " + n + "?")) enviar("radio-quitar", i, "Quitando " + n); };
+          fila.appendChild(x);
+        }
+        $("radios").appendChild(fila);
       });
     }
 
@@ -441,6 +491,78 @@
       editandoTarifas = false;
       enviar("volver-github", null, "Restableciendo precios");
     };
+
+    /* ---------- Agregar radio ---------- */
+    $("agregarAbrir").onclick = () => {
+      const p = $("agregarPanel");
+      p.hidden = !p.hidden;
+      $("agregarAbrir").textContent = p.hidden ? "+ AGREGAR RADIO" : "CERRAR";
+      if (!p.hidden) $("buscarTxt").focus();
+    };
+
+    // Buscador de radios por internet (radio-browser.info, gratis)
+    const SERVIDORES_RADIO = ["https://de1.api.radio-browser.info", "https://nl1.api.radio-browser.info", "https://at1.api.radio-browser.info"];
+    const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    async function buscarRadios(q) {
+      const ruta = `/json/stations/search?name=${encodeURIComponent(q)}&hidebroken=true&order=clickcount&reverse=true&limit=60`;
+      for (const s of SERVIDORES_RADIO) {
+        try {
+          const r = await fetch(s + ruta);
+          if (r.ok) return await r.json();
+        } catch (e) {}
+      }
+      throw new Error("sin conexión");
+    }
+    async function buscar() {
+      const q = $("buscarTxt").value.trim();
+      if (q.length < 2) return;
+      $("resultados").innerHTML = '<div class="resultado vacio">Buscando…</div>';
+      try {
+        const lista = (await buscarRadios(q))
+          .filter((x) => /^https:/i.test(x.url_resolved || ""))
+          .sort((a, b) => (b.countrycode === "UY") - (a.countrycode === "UY"));
+        const vistos = new Set();
+        const unicas = lista.filter((x) => !vistos.has(x.url_resolved) && vistos.add(x.url_resolved)).slice(0, 25);
+        if (!unicas.length) {
+          $("resultados").innerHTML = '<div class="resultado vacio">No encontré esa radio. Probá con otro nombre.</div>';
+          return;
+        }
+        $("resultados").innerHTML = "";
+        unicas.forEach((x) => {
+          const d = document.createElement("div");
+          d.className = "resultado";
+          const lugar = [x.state, x.country].filter(Boolean).join(", ");
+          d.innerHTML = `<div><b>${esc(x.name.trim())}</b><small>${esc(lugar)}</small></div><button>AGREGAR</button>`;
+          d.querySelector("button").onclick = () => {
+            const nombre = x.name.trim().slice(0, 40);
+            enviar("radio-agregar", { nombre, url: x.url_resolved }, "Agregando " + nombre);
+            cerrarAgregar();
+          };
+          $("resultados").appendChild(d);
+        });
+      } catch (e) {
+        $("resultados").innerHTML = '<div class="resultado vacio">No se pudo buscar. ¿Tenés internet?</div>';
+      }
+    }
+    $("buscarBtn").onclick = buscar;
+    $("buscarTxt").addEventListener("keydown", (e) => { if (e.key === "Enter") buscar(); });
+
+    $("manualBtn").onclick = () => {
+      const nombre = $("manualNombre").value.trim();
+      const url = $("manualUrl").value.trim();
+      if (!nombre) return toast("Poné el nombre de la radio");
+      if (!/^https:\/\//i.test(url)) return toast("El enlace tiene que empezar con https://");
+      enviar("radio-agregar", { nombre, url }, "Agregando " + nombre);
+      $("manualNombre").value = "";
+      $("manualUrl").value = "";
+      cerrarAgregar();
+    };
+    function cerrarAgregar() {
+      $("agregarPanel").hidden = true;
+      $("agregarAbrir").textContent = "+ AGREGAR RADIO";
+      $("resultados").innerHTML = "";
+      $("buscarTxt").value = "";
+    }
 
     dibujar();
   })();

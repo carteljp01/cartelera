@@ -24,6 +24,7 @@ window.CARTEL = {
     volumen: 1,
     radios: [
       { nombre: "Océano FM 93.9 (80s y 90s)", url: ["https://oceano-2.nty.uy/", "https://oceano-3.nty.uy/"] },
+      { nombre: "Azul FM 101.9", url: ["https://azul-1.nty.uy/", "https://azul-3.nty.uy/"] },
       { nombre: "Atlántica FM 89.3", url: "https://atlanticafm.radioca.st/stream" },
       { nombre: "FM Coronilla 102.3", url: "https://streaming01.shockmedia.com.ar/9184/stream" },
     ],

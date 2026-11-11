@@ -17,7 +17,18 @@
   );
   if (!CFG.activa) return;
 
-  const RADIOS = (Array.isArray(CFG.radios) ? CFG.radios : []).filter((r) => r && r.url);
+  // Radios: las de datos.js + las agregadas desde el control (guardadas en esta PC)
+  const CLAVE_EXTRAS = "radiosExtra";
+  const BASE = (Array.isArray(CFG.radios) ? CFG.radios : []).filter((r) => r && r.url);
+  const RADIOS = [];
+  function armarRadios() {
+    let extras = [];
+    try { extras = JSON.parse(localStorage.getItem(CLAVE_EXTRAS)) || []; } catch (e) {}
+    RADIOS.length = 0;
+    BASE.forEach((r) => RADIOS.push(r));
+    extras.filter((r) => r && r.url && r.nombre).forEach((r) => RADIOS.push(Object.assign({ extra: true }, r)));
+  }
+  armarRadios();
   const CACHE = "cartel-cot";
   const CLAVE_LISTA = "radioLista";
   const CLAVE_VOL = "radioVolumen";
@@ -287,6 +298,39 @@
 
   /* ---------- Teclas ---------- */
 
+  // Agregar / quitar radios desde el control remoto
+  const esHttps = (u) => /^https:\/\/[^\s]+$/i.test(u);
+  function agregarRadio(r) {
+    const nombre = String((r && r.nombre) || "").trim().slice(0, 40);
+    const urls = (Array.isArray(r && r.url) ? r.url : [r && r.url]).map((u) => String(u || "").trim()).filter(esHttps).slice(0, 3);
+    if (!nombre || !urls.length) { avisar("⚠ Ese enlace de radio no sirve (tiene que empezar con https)"); return; }
+    let extras = [];
+    try { extras = JSON.parse(localStorage.getItem(CLAVE_EXTRAS)) || []; } catch (e) {}
+    if (extras.length >= 12) { avisar("⚠ Ya hay demasiadas radios agregadas"); return; }
+    const eraMisCanciones = !quiereVivo();
+    extras.push({ nombre, url: urls.length === 1 ? urls[0] : urls });
+    guardar(CLAVE_EXTRAS, extras);
+    armarRadios();
+    if (eraMisCanciones) { elegida = RADIOS.length; guardar(CLAVE_EMISORA, elegida); }
+    avisar(`📻 Radio agregada: ${nombre}`);
+    elegirRadio(RADIOS.length - 1); // la pone a sonar para probarla
+  }
+  function quitarRadio(i) {
+    i = Number(i);
+    const r = RADIOS[i];
+    if (!r || !r.extra) return;
+    let extras = [];
+    try { extras = JSON.parse(localStorage.getItem(CLAVE_EXTRAS)) || []; } catch (e) {}
+    extras.splice(i - BASE.length, 1);
+    guardar(CLAVE_EXTRAS, extras);
+    const sonabaEsta = elegida === i;
+    armarRadios();
+    if (elegida > i) elegida--;
+    guardar(CLAVE_EMISORA, elegida);
+    avisar(`Radio quitada: ${r.nombre}`);
+    if (sonabaEsta) elegirRadio(0); else cambio();
+  }
+
   function nombreElegida() {
     return quiereVivo() ? RADIOS[elegida].nombre : "Mis canciones";
   }
@@ -368,6 +412,7 @@
     datos() {
       return {
         radios: RADIOS.map((r) => r.nombre),
+        fijas: BASE.length,
         elegida,
         modo,
         sonando: modo === "vivo" ? sonando : sonando ? nombreBonito(sonando) : "",
@@ -381,6 +426,8 @@
     ponerVolumen,
     elegirRadio,
     siguienteRadio: () => elegirRadio(elegida + 1),
+    agregarRadio,
+    quitarRadio,
     siguiente,
   };
 })();

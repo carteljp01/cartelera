@@ -63,6 +63,8 @@
     switch (orden.cmd) {
       case "estado": informar(true); return;
       case "radio": r.elegirRadio && r.elegirRadio(orden.valor); return;
+      case "radio-agregar": r.agregarRadio && r.agregarRadio(orden.valor); return;
+      case "radio-quitar": r.quitarRadio && r.quitarRadio(orden.valor); return;
       case "radio-siguiente": r.siguienteRadio && r.siguienteRadio(); return;
       case "mudo": r.alternarMudo && r.alternarMudo(orden.valor); return;
       case "volumen": r.ponerVolumen && r.ponerVolumen(Number(orden.valor) / 100); return;

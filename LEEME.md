@@ -26,6 +26,7 @@
 
 ## Control remoto (desde el celular)
 - Página: `control.html` → cambiar radio, volumen, silenciar, pausar, cambiar pantalla, buscar cambios y recargar.
+- **Agregar radios desde el control**: "+ AGREGAR RADIO" → buscar por nombre o pegar el enlace (https). Quedan guardadas en esa tele; la ✕ las quita. Las fijas están en `datos.js`.
 - **Tarifas desde el control**: cambiar precios o nombres al instante (queda guardado en esa tele). "Volver a las de GitHub" deshace. Para dejarlo fijo, cargarlo en `datos.js`.
 - **Aviso en la tele**: tapa todo el recuadro de horarios (rojo = alerta, naranja = aviso). Duración: 1, 5, 15, 30 min, 1 hora o hasta quitarlo.
   Si la tele se recarga, el aviso sigue hasta que vence. Se quita con QUITAR AVISO.
