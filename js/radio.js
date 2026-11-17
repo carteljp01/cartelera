@@ -7,6 +7,8 @@
      No hace falta anotar los nombres: lee la carpeta de GitHub sola.
    Teclas:  M = silenciar / activar   ·   + / - = volumen
             R = cambiar de radio (… → mis canciones → …)
+   YouTube: una "radio" puede ser un link de YouTube (video o lista).
+   Suena solo el audio y se silencia sola mientras pasa un anuncio.
    ========================================================= */
 (function () {
   "use strict";
@@ -19,7 +21,7 @@
 
   // Radios: las de datos.js + las agregadas desde el control (guardadas en esta PC)
   const CLAVE_EXTRAS = "radiosExtra";
-  const BASE = (Array.isArray(CFG.radios) ? CFG.radios : []).filter((r) => r && r.url);
+  const BASE = (Array.isArray(CFG.radios) ? CFG.radios : []).filter((r) => r && (r.url || r.youtube));
   const RADIOS = [];
   function armarRadios() {
     let extras = [];
@@ -152,6 +154,13 @@
 
   async function arrancarVivo(siguienteEnlace) {
     const r = RADIOS[elegida];
+    const idYt = ytDe(r);
+    if (idYt) {
+      if (siguienteEnlace) pasarALocal();
+      else arrancarYoutube(r, idYt);
+      return;
+    }
+    pararYoutube();
     const enlaces = enlacesDe(r);
     enlace = siguienteEnlace ? enlace + 1 : 0;
     if (enlace >= enlaces.length) { pasarALocal(); return; }
@@ -175,6 +184,7 @@
 
   function pasarALocal() {
     if (modo === "local") return;
+    pararYoutube();
     modo = "local";
     sonando = "";
     audio.pause();
@@ -203,6 +213,124 @@
     ultimoTiempo = audio.currentTime;
     if (quieto >= 20) { quieto = 0; falloVivo(); }
   }, 5000);
+
+  /* ---------- YouTube (solo el audio) ---------- */
+  // Acepta links de video (watch?v=, youtu.be, shorts, live) y de listas (list=)
+  function idYoutube(u) {
+    u = String(u || "").trim();
+    if (!/youtube\.com|youtu\.be/i.test(u)) return null;
+    const l = /[?&]list=([\w-]+)/.exec(u);
+    const v = /(?:[?&]v=|youtu\.be\/|\/embed\/|\/shorts\/|\/live\/)([\w-]{11})/.exec(u);
+    if (!l && !v) return null;
+    return { v: v ? v[1] : "", list: l ? l[1] : "" };
+  }
+  const ytDe = (r) => (r ? idYoutube(r.youtube) || idYoutube(Array.isArray(r.url) ? r.url[0] : r.url) : null);
+
+  // anuncio = true también al arrancar: queda en silencio hasta que el video
+  // de verdad empieza a avanzar (así no suena el anuncio del principio).
+  const yt = { p: null, caja: null, anuncio: true, quieto: 0, ultimo: -1, espera: null, errores: 0 };
+
+  function cargarApiYT() {
+    return new Promise((ok, mal) => {
+      if (window.YT && window.YT.Player) return ok();
+      const listos = window._ytListos || (window._ytListos = []);
+      listos.push(ok);
+      if (!window._ytCargando) {
+        window._ytCargando = true;
+        const antes = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+          if (antes) try { antes(); } catch (e) {}
+          (window._ytListos || []).splice(0).forEach((f) => f());
+        };
+        const s = document.createElement("script");
+        s.src = "https://www.youtube.com/iframe_api";
+        s.onerror = () => { window._ytCargando = false; s.remove(); };
+        document.head.appendChild(s);
+      }
+      setTimeout(() => (window.YT && window.YT.Player ? ok() : mal(new Error("YouTube no carga"))), 15000);
+    });
+  }
+
+  function volumenYT() {
+    if (!yt.p || !yt.p.setVolume) return;
+    const v = yt.anuncio ? 0 : volumenDeseado();
+    try {
+      if (v <= 0) yt.p.mute();
+      else { yt.p.unMute(); yt.p.setVolume(Math.round(v * 100)); }
+    } catch (e) {}
+  }
+
+  function pararYoutube() {
+    clearTimeout(yt.espera);
+    if (yt.p) { try { yt.p.destroy(); } catch (e) {} }
+    if (yt.caja) yt.caja.remove();
+    Object.assign(yt, { p: null, caja: null, anuncio: true, quieto: 0, ultimo: -1, errores: 0 });
+  }
+
+  async function arrancarYoutube(r, id) {
+    clearTimeout(reintento);
+    pararYoutube();
+    modo = "vivo";
+    sonando = r.nombre || "YouTube";
+    audio.pause();
+    audio.removeAttribute("src");
+    soltarBlob();
+    try { await cargarApiYT(); } catch (e) { pasarALocal(); return; }
+    if (modo !== "vivo" || RADIOS[elegida] !== r) return;
+    // El reproductor existe pero no se ve: queda detrás del cartel
+    yt.caja = document.createElement("div");
+    yt.caja.id = "ytAudio";
+    yt.caja.setAttribute("aria-hidden", "true");
+    yt.caja.style.cssText = "position:fixed;right:0;bottom:0;width:200px;height:200px;opacity:0;pointer-events:none;z-index:-1;overflow:hidden";
+    const dentro = document.createElement("div");
+    yt.caja.appendChild(dentro);
+    document.body.appendChild(yt.caja);
+    const pv = { autoplay: 1, controls: 0, disablekb: 1, fs: 0, rel: 0, playsinline: 1, iv_load_policy: 3, loop: 1 };
+    if (id.list) { pv.listType = "playlist"; pv.list = id.list; } else { pv.playlist = id.v; }
+    yt.p = new YT.Player(dentro, {
+      width: 200, height: 200,
+      videoId: id.v || undefined,
+      playerVars: pv,
+      events: {
+        onReady: (e) => {
+          volumenYT();
+          try { if (id.list) e.target.setShuffle(true); e.target.playVideo(); } catch (x) {}
+          clearTimeout(yt.espera);
+          yt.espera = setTimeout(() => {
+            if (yt.p && yt.p.getPlayerState && yt.p.getPlayerState() !== 1) { bloqueada = true; mostrarAvisoBloqueo(); cambio(); }
+          }, 8000);
+        },
+        onStateChange: (e) => {
+          if (e.data === 1) {
+            yt.errores = 0;
+            if (bloqueada) { bloqueada = false; ocultarAvisoBloqueo(); }
+            cambio();
+          }
+          if (e.data === 0 && !id.list) { try { e.target.playVideo(); } catch (x) {} }
+        },
+        onError: () => {
+          // en una lista salta al siguiente; si falla todo, pasa a las canciones propias
+          yt.errores++;
+          if (id.list && yt.errores < 5) { try { yt.p.nextVideo(); } catch (x) {} return; }
+          avisar("⚠ Ese video de YouTube no se puede pasar fuera de YouTube");
+          pasarALocal();
+        },
+      },
+    });
+  }
+
+  // Anuncios: mientras pasa uno, el reproductor dice "reproduciendo" pero el
+  // tiempo del video no avanza. Si queda así más de 1,5 s, se silencia.
+  setInterval(() => {
+    if (!yt.p || !yt.p.getPlayerState) return;
+    let st, t;
+    try { st = yt.p.getPlayerState(); t = yt.p.getCurrentTime(); } catch (e) { return; }
+    const avanza = Math.abs(t - yt.ultimo) >= 0.05 && yt.ultimo >= 0;
+    if (st === 1) yt.quieto = avanza ? 0 : yt.quieto + 0.5;
+    yt.ultimo = t;
+    const anuncio = yt.anuncio ? !(st === 1 && avanza) : yt.quieto >= 1.5;
+    if (anuncio !== yt.anuncio) { yt.anuncio = anuncio; volumenYT(); cambio(); }
+  }, 500);
 
   /* ---------- Canciones propias ---------- */
 
@@ -292,7 +420,11 @@
   function ocultarAvisoBloqueo() {
     if (avisoBloqueo) { avisoBloqueo.remove(); avisoBloqueo = null; }
   }
-  const desbloquear = () => { if (bloqueada) reproducir().catch(() => (modo === "vivo" ? pasarALocal() : null)); };
+  const desbloquear = () => {
+    if (!bloqueada) return;
+    if (yt.p) { try { yt.p.playVideo(); volumenYT(); } catch (e) {} return; }
+    reproducir().catch(() => (modo === "vivo" ? pasarALocal() : null));
+  };
   document.addEventListener("keydown", desbloquear);
   document.addEventListener("pointerdown", desbloquear);
 
@@ -304,6 +436,7 @@
     const nombre = String((r && r.nombre) || "").trim().slice(0, 40);
     const urls = (Array.isArray(r && r.url) ? r.url : [r && r.url]).map((u) => String(u || "").trim()).filter(esHttps).slice(0, 3);
     if (!nombre || !urls.length) { avisar("⚠ Ese enlace de radio no sirve (tiene que empezar con https)"); return; }
+    if (/youtube\.com|youtu\.be/i.test(urls[0]) && !idYoutube(urls[0])) { avisar("⚠ Ese link de YouTube no sirve: copiá el de un video o una lista"); return; }
     let extras = [];
     try { extras = JSON.parse(localStorage.getItem(CLAVE_EXTRAS)) || []; } catch (e) {}
     if (extras.length >= 12) { avisar("⚠ Ya hay demasiadas radios agregadas"); return; }
@@ -340,6 +473,7 @@
     mudo = typeof valor === "boolean" ? valor : !mudo;
     guardar(CLAVE_MUDO, mudo);
     fundir(volumenDeseado(), 0.4);
+    volumenYT();
     avisar(mudo ? "🔇 Música silenciada" : `🔊 Música activada · volumen ${Math.round(volumen * 100)}%`);
     cambio();
   }
@@ -347,6 +481,7 @@
     volumen = Math.min(1, Math.max(0.05, Number(v) || 0));
     guardar(CLAVE_VOL, volumen);
     if (!mudo) fundir(volumen, 0.2);
+    volumenYT();
     avisar(`🔊 Volumen ${Math.round(volumen * 100)}%`);
     cambio();
   }
@@ -400,6 +535,7 @@
     estado() {
       const vol = mudo ? "silenciada" : "volumen " + Math.round(volumen * 100) + "%";
       if (bloqueada) return "Música: esperando que toquen una tecla";
+      if (modo === "vivo" && ytDe(RADIOS[elegida])) return `Música: ▶ ${sonando} (YouTube) · ${yt.anuncio ? "anuncio o cargando, en silencio" : vol} · R cambia de radio`;
       if (modo === "vivo") return `Música: 📻 ${sonando} en vivo · ${vol} · R cambia de radio`;
       if (!lista.length) {
         return quiereVivo()
@@ -419,6 +555,8 @@
         volumen: Math.round(volumen * 100),
         mudo,
         bloqueada,
+        youtube: modo === "vivo" && !!ytDe(RADIOS[elegida]),
+        anuncio: !!yt.p && yt.anuncio,
         canciones: lista.length,
       };
     },

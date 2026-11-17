@@ -14,6 +14,11 @@
 ## Radio COT (música)
 - Con internet suena la radio en vivo (Océano FM 93.9, 80s y 90s; **R** pasa a Atlántica FM 89.3, FM Coronilla 102.3 y "mis canciones").
   Las radios se cambian en `datos.js` → `musica.radios` (el enlace tiene que empezar con https).
+- **YouTube (solo audio)**: en `datos.js` agregá `{ nombre: "...", youtube: "link del video o de la lista" }`,
+  o pegá el link en el control (+ AGREGAR RADIO → pegar el enlace). No se ve el video, solo suena.
+  Mientras pasa un anuncio se silencia sola y vuelve al terminar. También arranca en silencio
+  hasta que empieza el video de verdad, para no pasar el anuncio del principio.
+  Algunos videos no dejan reproducirse fuera de YouTube: en ese caso avisa y pasa a "mis canciones".
 - Sin internet, o si la radio se cae, pasa sola a los MP3 de la carpeta `musica` y reintenta la radio cada 2 minutos.
 - Subí los MP3 a la carpeta `musica` del repo (Add file → Upload files). No hace falta anotar nada más.
 - Pasan en aleatorio con fundido entre canciones. Se guardan en la PC: suenan aunque no haya internet.

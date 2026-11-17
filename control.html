@@ -205,7 +205,7 @@
         <h3>O PEGAR EL ENLACE</h3>
         <div class="manual">
           <input id="manualNombre" placeholder="Nombre de la radio" maxlength="40">
-          <input id="manualUrl" placeholder="https://..." inputmode="url" autocomplete="off">
+          <input id="manualUrl" placeholder="https://... (radio o link de YouTube)" inputmode="url" autocomplete="off">
           <button id="manualBtn">AGREGAR</button>
         </div>
       </div>
@@ -354,7 +354,7 @@
         $("sonandoSub").textContent = "Tocá una tecla en la tele.";
       } else if (r.modo === "vivo") {
         $("sonando").textContent = r.sonando;
-        $("sonandoSub").textContent = "En vivo" + (r.mudo ? " · silenciada" : "");
+        $("sonandoSub").textContent = (r.youtube ? (r.anuncio ? "YouTube · anuncio en silencio" : "YouTube") : "En vivo") + (r.mudo ? " · silenciada" : "");
       } else if (r.sonando) {
         $("sonando").textContent = r.sonando;
         $("sonandoSub").textContent = "Mis canciones" + (r.mudo ? " · silenciada" : "");

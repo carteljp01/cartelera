@@ -19,6 +19,9 @@ window.CARTEL = {
   // - Con internet suena la primera radio de la lista (R en el teclado cambia).
   // - Sin internet, o si la radio se cae, pasa los MP3 de la carpeta "musica".
   // - activa: false para apagar todo · volumen de 0 a 1 (1 = al máximo; se baja con la tele o con -)
+  // - También se puede poner un link de YouTube (video o lista): suena solo el audio
+  //   y se silencia sola durante los anuncios. Ejemplo:
+  //   { nombre: "Mi lista de YouTube", youtube: "https://www.youtube.com/playlist?list=..." },
   musica: {
     activa: true,
     volumen: 1,
