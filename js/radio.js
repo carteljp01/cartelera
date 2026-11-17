@@ -548,6 +548,7 @@
     datos() {
       return {
         radios: RADIOS.map((r) => r.nombre),
+        tipos: RADIOS.map((r) => (ytDe(r) ? "youtube" : "radio")),
         fijas: BASE.length,
         elegida,
         modo,
