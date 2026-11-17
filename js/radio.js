@@ -310,8 +310,12 @@
         },
         onError: () => {
           // en una lista salta al siguiente; si falla todo, pasa a las canciones propias
+          // (muchos videos oficiales de música no dejan reproducirse fuera de YouTube:
+          //  se prueba toda la lista antes de rendirse)
           yt.errores++;
-          if (id.list && yt.errores < 5) { try { yt.p.nextVideo(); } catch (x) {} return; }
+          let total = 0;
+          try { total = (yt.p.getPlaylist() || []).length; } catch (x) {}
+          if (id.list && yt.errores < Math.max(5, total)) { try { yt.p.nextVideo(); } catch (x) {} return; }
           avisar("⚠ Ese video de YouTube no se puede pasar fuera de YouTube");
           pasarALocal();
         },
@@ -548,6 +552,7 @@
     datos() {
       return {
         radios: RADIOS.map((r) => r.nombre),
+        tipos: RADIOS.map((r) => (ytDe(r) ? "youtube" : "radio")),
         fijas: BASE.length,
         elegida,
         modo,

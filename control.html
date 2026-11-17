@@ -81,6 +81,14 @@
       align-items: center;
       gap: 10px;
     }
+    .selector { display: flex; border: 2px solid var(--marron); background: var(--fila); }
+    .selector select {
+      flex: 1; min-width: 0; min-height: 54px; padding: 10px 12px; border: 0; border-radius: 0;
+      background: transparent; color: var(--texto); font: 400 20px/1.1 "triad", monospace; cursor: pointer;
+    }
+    .selector .quitar-radio { flex: none; width: 56px; justify-content: center; border-left: 2px solid var(--marron); background: #fff; font: 400 18px/1 "triad", monospace; color: #b00000; }
+    .selector .quitar-radio[hidden] { display: none; }
+    .selector-nota { color: var(--gris); font-size: 13px; margin-top: 6px; }
     .radio-fila { display: flex; }
     .radio-fila .elegir { flex: 1; min-width: 0; font: 400 20px/1.1 "triad", monospace; }
     .radio-fila:nth-child(odd) button { background: var(--fila); }
@@ -193,8 +201,12 @@
 
     <section class="requiere">
       <h2>RADIO</h2>
-      <div class="lista" id="radios"></div>
-      <button class="agregar-abrir" id="agregarAbrir">+ AGREGAR RADIO</button>
+      <div class="selector">
+        <select id="radioSel" aria-label="Elegir radio o lista"></select>
+        <button class="quitar-radio" id="quitarSel" hidden aria-label="Quitar la elegida">✕</button>
+      </div>
+      <div class="selector-nota" id="radioNota"></div>
+      <button class="agregar-abrir" id="agregarAbrir">+ AGREGAR RADIO O LISTA</button>
       <div id="agregarPanel" hidden>
         <h3>BUSCAR</h3>
         <div class="buscador">
@@ -318,32 +330,46 @@
       (ultimo && ultimo.radio && ultimo.radio.radios) ||
       (((window.CARTEL || {}).musica || {}).radios || []).map((r) => r.nombre);
 
+    // Menú desplegable: radios, listas de YouTube y "Mis canciones"
+    let firmaMenu = "";
     function dibujarRadios() {
+      const sel = $("radioSel");
+      const r = (ultimo && ultimo.radio) || {};
       const nombres = nombresRadios();
-      const elegida = ultimo && ultimo.radio ? ultimo.radio.elegida : -1;
-      const items = nombres.concat(["Mis canciones"]);
-      $("radios").innerHTML = "";
-      const fijas = ultimo && ultimo.radio && typeof ultimo.radio.fijas === "number" ? ultimo.radio.fijas : nombres.length;
-      items.forEach((n, i) => {
-        const fila = document.createElement("div");
-        fila.className = "radio-fila";
-        const b = document.createElement("button");
-        b.className = "elegir";
-        b.textContent = n;
-        if (i === elegida) b.classList.add("activa");
-        b.onclick = () => enviar("radio", i, "Cambiando a " + n);
-        fila.appendChild(b);
-        if (i >= fijas && i < nombres.length) {
-          const x = document.createElement("button");
-          x.className = "quitar-radio";
-          x.textContent = "✕";
-          x.setAttribute("aria-label", "Quitar " + n);
-          x.onclick = () => { if (confirm("¿Quitar " + n + "?")) enviar("radio-quitar", i, "Quitando " + n); };
-          fila.appendChild(x);
+      const tipos = Array.isArray(r.tipos) ? r.tipos : [];
+      const fijas = typeof r.fijas === "number" ? r.fijas : nombres.length;
+      const elegida = typeof r.elegida === "number" ? r.elegida : -1;
+      const firma = JSON.stringify([nombres, tipos, elegida]);
+      // no redibujar mientras el menú está abierto
+      if (document.activeElement === sel && firma === firmaMenu) return;
+      if (firma !== firmaMenu) {
+        firmaMenu = firma;
+        sel.innerHTML = "";
+        const grupo = (t) => { const g = document.createElement("optgroup"); g.label = t; return g; };
+        const gRadios = grupo("Radios en vivo"), gYt = grupo("Listas de YouTube"), gOtras = grupo("Sin internet");
+        const opcion = (texto, i) => { const o = document.createElement("option"); o.value = i; o.textContent = texto; return o; };
+        nombres.forEach((n, i) => (tipos[i] === "youtube" ? gYt : gRadios).appendChild(opcion(n, i)));
+        gOtras.appendChild(opcion("Mis canciones", nombres.length));
+        [gRadios, gYt, gOtras].forEach((g) => { if (g.children.length) sel.appendChild(g); });
+        if (elegida < 0) {
+          const o = opcion("Elegí una radio…", -1); o.disabled = true; sel.prepend(o);
         }
-        $("radios").appendChild(fila);
-      });
+      }
+      sel.value = String(elegida);
+      const esExtra = elegida >= fijas && elegida < nombres.length;
+      $("quitarSel").hidden = !esExtra;
+      $("radioNota").textContent = esExtra ? "Agregada desde el control: la ✕ la quita de la tele." : "";
     }
+    $("radioSel").onchange = (e) => {
+      const i = Number(e.target.value);
+      const n = e.target.selectedOptions[0] ? e.target.selectedOptions[0].textContent : "";
+      if (i >= 0) enviar("radio", i, "Cambiando a " + n);
+    };
+    $("quitarSel").onclick = () => {
+      const i = Number($("radioSel").value);
+      const n = nombresRadios()[i];
+      if (n && confirm("¿Quitar " + n + "?")) enviar("radio-quitar", i, "Quitando " + n);
+    };
 
     function dibujar() {
       dibujarRadios();
@@ -496,7 +522,7 @@
     $("agregarAbrir").onclick = () => {
       const p = $("agregarPanel");
       p.hidden = !p.hidden;
-      $("agregarAbrir").textContent = p.hidden ? "+ AGREGAR RADIO" : "CERRAR";
+      $("agregarAbrir").textContent = p.hidden ? "+ AGREGAR RADIO O LISTA" : "CERRAR";
       if (!p.hidden) $("buscarTxt").focus();
     };
 
@@ -559,7 +585,7 @@
     };
     function cerrarAgregar() {
       $("agregarPanel").hidden = true;
-      $("agregarAbrir").textContent = "+ AGREGAR RADIO";
+      $("agregarAbrir").textContent = "+ AGREGAR RADIO O LISTA";
       $("resultados").innerHTML = "";
       $("buscarTxt").value = "";
     }
